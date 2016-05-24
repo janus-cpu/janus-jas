@@ -1,0 +1,63 @@
+;
+; JAS Instruction Set Mapping
+; ---------------------------
+; Lines beginning with a semicolon (;) and empty lines will be ignored.
+;
+; Format entries as such:
+;
+;     MNEMONIC_STRING <tab> HEX_OPCODE <tab> INSTRUCTION_TYPE
+;
+; where:
+;
+; - MNEMONIC_STRING: is the string representation of the instruction
+; - HEX_OPCODE: The opcode written in hexadecimal.
+; - INSTRUCTION_TYPE: Single letter representing the instruction type.
+;
+;     - N : NOP
+;     - A : ADD
+;     - B : opposite of ADD
+;     - X : XCHG
+;     - I : IN
+;     - P : POP
+;     - U : PUSH
+;
+; * Note: Avoid extra whitespace please!
+;
+
+; Arithmetic and Logical Operations
+NOP	0x0	N
+
+ADD	0x1	A
+ADC	0x2	A
+SUB	0x3	A
+SBB	0x4	A
+
+CMP	0x5	A
+CMP	0x6	B
+TEST	0x7	A
+TEST	0x8	B
+
+DEC	0x9	P
+INC	0xA	P
+
+;UDIV	0xB	TODO
+;UMUL	0xC	TODO
+;SDIV	0xD	TODO
+;SMUL	0xE	TODO
+
+NEG	0xF	P
+
+NOT	0x10	P
+AND	0x11	A
+OR	0x12	A
+XOR	0x13	A
+
+; Control Flow
+JMP	0x30	U
+; conditional jumps later
+CALL	0x3C	U
+RET	0x3D	N
+HLT	0x3E	N
+
+; Miscellaneous Instruction
+MOV	0x50	A

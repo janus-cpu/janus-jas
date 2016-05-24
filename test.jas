@@ -1,0 +1,4 @@
+mov 0xDEAD, r2
+add r0, r2
+
+
