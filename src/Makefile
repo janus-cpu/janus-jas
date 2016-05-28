@@ -32,7 +32,7 @@ objects: $(OBJ_FILES) $(H_FILES)
 	@echo ""
 
 clean:
-	rm -f *.o JasLexer.c InstructionList.h
+	rm -f *.o JasLexer.c
 
 new:
 	@$(MAKE) clean > /dev/null

@@ -1,12 +1,14 @@
 %{
 
 #include <stdio.h>
-extern int fileno(FILE *); /* shut up the compiler */
-
 #include "JasParser.h"
 
-/* count line numbers */
+extern int fileno(FILE *); /* shut up the compiler */
+extern char * infilename;
+
+/* count line numbers, store lines */
 int lineno = 1;
+char linebuf[MAX_LINE_LENGTH];
 
 /* return 1 to prevent assumption that we're scanning another file */
 /* TODO: this will change soon when we handle multiple files!      */
@@ -14,14 +16,10 @@ int yywrap(void) {
     return 1;
 }
 
-extern char * infilename;
 /* error output */
-/* TODO: make this print out more information, allow va_args */
 void yyerror(const char * msg) {
-    fprintf(stderr, "%s:%d: error: %s\n",
-            infilename, lineno, msg);
+    fprintf(stderr, ERROR_STRING, infilename, lineno, msg, linebuf);
 }
-
 
 %}
 
@@ -43,7 +41,7 @@ REGISTER {GEN_L_REG}|{GEN_S_REG}|{EXTRA_REG}|{KERN_REG}|{FLAG_REG}|{PTR_REG}
 
 %%
 
-";"[^;\n]*$                   {/* comment */}
+";"[^;\n]*$                 {/* comment */}
 
 {ALPHA}{ALNUM}*:            { return TOK_LABEL; }
 {GEN_L_REG}                 { return TOK_L_REG; }
@@ -64,12 +62,15 @@ REGISTER {GEN_L_REG}|{GEN_S_REG}|{EXTRA_REG}|{KERN_REG}|{FLAG_REG}|{PTR_REG}
 "."                         { return TOK_DOT; }
 
 [ \t]                       {/* ignore space */}
-\n                          { lineno++;
+\n.*                        { lineno++;
+                              strncpy(linebuf, yytext+1, sizeof(linebuf));
+                              yyless(1); /* give back all but the newline */
                               return TOK_NL; }
 
 <<eof>>                     { return EOF; }
 
-.                           fprintf(stderr, "Unrecognized character %c\n", *yytext);
+.                           { fprintf(stderr, "Unrecognized character %c\n",
+                                      *yytext); }
 
 %%
 

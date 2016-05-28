@@ -59,8 +59,6 @@ static void firstPass(void) {
     /* read until end-of-input */
     while ((token = yylex()) != EOF) {
 
-        DEBUG("SOL:: %s", yytext);
-
         /* two possibilities: label or instruction */
         if (token == TOK_LABEL) {
 
@@ -257,6 +255,16 @@ static void readOperand(Operand * op, enum TokenType token) {
     }
 }
 
+/* opcodes for CMP and TEST */
+#define OP_CMP  0x05
+#define OP_TEST 0x07
+
+static int isRegType(OperandType type) {
+    return type == OT_REG ||
+           type == OT_REG_ACCESS ||
+           type == OT_REG_OFFSET;
+}
+
 static void readInstruction(void) {
     enum TokenType token;
     lcounter++; /* count for a new instruction */
@@ -269,9 +277,6 @@ static void readInstruction(void) {
 
     /* interpret as instruction anyway */
 
-    DEBUG("INSTR :: %s", yytext);
-
-    // readInstruction();
     Instruction * newInstr;
     newInstr= saveInstruction(yytext); /* create new instr entry */
 
@@ -284,6 +289,17 @@ static void readInstruction(void) {
     } else {
         /* next lexeme must be an operand */
         readOperands(newInstr, token);
+    }
+
+    /* special case for CMP and TEST */
+    if (newInstr->opcode == OP_CMP || newInstr->opcode == OP_TEST) {
+        /* check the operand types and assign the prototype accordingly */
+        if (isRegType(newInstr->op2.type))
+            newInstr->type = IT_A;
+        else if (isRegType(newInstr->op1.type)) {
+            newInstr->type = IT_B;
+            newInstr->opcode++; /* increase opcode to the B opcode */
+        }
     }
 
     /** semantic checks **/

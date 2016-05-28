@@ -22,41 +22,39 @@ typedef char OperandType;
 typedef char InstructionType;
 typedef char OperandSize;
 
-/** opcodes for instructions! TODO: might become unnecessary **/
-enum OpCode {
-    OP_NOP   = 0x00,    /* no-op */
-
-    OP_ADD   = 0x01,    /* simple arithmetic */
-    OP_ADC   = 0x02,
-    OP_SUB   = 0x03,
-    OP_SBB   = 0x04,
-
-    OP_CMP  = 0x05,     /* comparison and testing:             */
-    //CMPB  = 0x06,     /* these come in pairs of type A and B */
-    OP_TEST = 0x07,
-    //TESTB = 0x08,
-
-    OP_DEC   = 0x09,    /* decrement/increment */
-    OP_INC   = 0x0A,
-
-    OP_UDIV  = 0x0B,    /* unsigned and signed multiplication/division */
-    OP_UMUL  = 0x0C,
-    OP_SDIV  = 0x0D,
-    OP_SMUL  = 0x0E,
-
-    OP_NEG   = 0x0F,    /* numerical negation */
-
-    OP_NOT   = 0x10,    /* bitwise operations */
-    OP_AND   = 0x11,
-    OP_OR    = 0x12,
-    OP_XOR   = 0x13,
-
-    OP_JMP   = 0x30,    /* control flow */
-
-
-    OP_MOV   = 0x50     /* miscellaneous */
-
-};
+///** opcodes for instructions! TODO: might become unnecessary **/
+//enum OpCode {
+//    OP_NOP   = 0x00,    /* no-op */
+//
+//    OP_ADD   = 0x01,    /* simple arithmetic */
+//    OP_ADC   = 0x02,
+//    OP_SUB   = 0x03,
+//    OP_SBB   = 0x04,
+//
+//    OP_CMP  = 0x05,     /* comparison and testing:             */
+//    OP_TEST = 0x07,
+//
+//    OP_DEC   = 0x09,    /* decrement/increment */
+//    OP_INC   = 0x0A,
+//
+//    OP_UDIV  = 0x0B,    /* unsigned and signed multiplication/division */
+//    OP_UMUL  = 0x0C,
+//    OP_SDIV  = 0x0D,
+//    OP_SMUL  = 0x0E,
+//
+//    OP_NEG   = 0x0F,    /* numerical negation */
+//
+//    OP_NOT   = 0x10,    /* bitwise operations */
+//    OP_AND   = 0x11,
+//    OP_OR    = 0x12,
+//    OP_XOR   = 0x13,
+//
+//    OP_JMP   = 0x30,    /* control flow */
+//
+//
+//    OP_MOV   = 0x50     /* miscellaneous */
+//
+//};
 
 /** Operand-relevant declarations **/
 /* Enumeration of the 4 operand types */

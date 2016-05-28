@@ -22,7 +22,8 @@ Instruction * saveInstruction(const char * name) {
     InstrRecord instructionInfo;
 
     /* allocate more space for list */
-    temp = (Instruction *) realloc(instructions, sizeof(Instruction) * (numinstrs + 1));
+    temp = (Instruction *)
+            realloc(instructions, sizeof(Instruction) * (numinstrs + 1));
     if (temp == NULL) { fprintf(stderr, "realloc() error.\n"); exit(1); }
     instructions = temp;
 
@@ -73,14 +74,16 @@ int instructionSizeAgreement(Instruction * instr) {
     Operand * op2 = &instr->op2;
     int result;
 
+    /* when sizes disagree, widen numbers if needed */
     if (op1->size != op2->size) {
-        /* widen numbers if needed */
         if (op1->type == OT_CONST) op1->size = OPSZ_LONG;
         else if (op2->type == OT_CONST) op2->size = OPSZ_LONG;
     }
 
+    /* test that both sizes are the same */
     result = (op1->size == op2->size);
 
+    /* if size is forced, check that the sizes agree with the forced size */
     if (instr->size != 0)
         result = (result && instr->size == op1->size);
 
@@ -91,6 +94,8 @@ int instructionTypeAgreement(Instruction * instr) {
     Operand * op1 = &instr->op1;
     Operand * op2 = &instr->op2;
 
+    /* check that the operands' sizes and types agree
+     * with the instruction's prototype */
     switch (instr->type) {
 
         case IT_N: /* no operands */
@@ -132,9 +137,9 @@ int instructionTypeAgreement(Instruction * instr) {
     }
 }
 
-#define PLACE_SIZE(sz) ((sz) == OPSZ_LONG ? 0 : 1)
-#define PLACE_TYPE(t,n) ()
 #define SIZE_BIT 0x00000200
+
+//static writeOffset; // TODO
 
 int writeInstruction(Instruction * instr, FILE * stream) {
     int instruction = instr->opcode;
@@ -144,30 +149,33 @@ int writeInstruction(Instruction * instr, FILE * stream) {
     if (instr->size == OPSZ_SHORT)
         instruction |= SIZE_BIT;
 
-    /* put op types */
+    /* for op types */
     Operand * op1 = &instr->op1;
     Operand * op2 = &instr->op2;
 
     instruction |= (op1->type) << 14;
     instruction |= (op2->type) << 16;
 
-    /* op values */
+    /* operand 1*/
     if (op1->type != OT_CONST)
         instruction |= (op1->value << 18);
     else
         constant = op1->value;
 
+    /* operand 2 */
     if (op2->type != OT_CONST)
         instruction |= op2->value << 25;
     else
         constant = op2->value;
 
+    /* write the instruction to file */
     fwrite(&instruction, sizeof(int), 1, stream);
+
+    /* include any custom offsets/constants in succeeding word */
     if (op1->type == OT_CONST || op2->type == OT_CONST)
         fwrite(&constant, sizeof(int), 1, stream);
 
-    fprintf(stderr, "OPERATION:: %08x\nCONSTANT:: %08x\n", instruction, constant);
-    return 0;
+    return EXIT_SUCCESS;
 }
 
 int isInstruction(const char * name) {

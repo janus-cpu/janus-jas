@@ -16,7 +16,7 @@
 
 /* definition of debug flag */
 bool debug_on = false;
-char * infilename;
+char * infilename = "(stdin)"; /* default name is stdin */
 
 int main(int argc, char *argv[]) {
     FILE * infile;  /* input and output streams */

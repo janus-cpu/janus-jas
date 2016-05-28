@@ -1,6 +1,13 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+/* probably the maximum line length */
+#define MAX_LINE_LENGTH 500
+
+/* error string: gets printed out for every error */
+#define ERROR_STRING "\033[1m%s:%d: \033[31merror\033[39m: %s\n" \
+                     ">>>>\033[0m%s\n\n"
+
 /** enum for the token types to expect **/
 enum TokenType {
 
