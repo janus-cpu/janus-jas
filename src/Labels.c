@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "debug.h"
+#include "Instruction.h"
 #include "Labels.h"
 
 /* symbol table */
@@ -20,6 +21,9 @@ void resolveLabels(void) {
     for (index = 0; index < numundef; index++) {
         UndefLabel undef = undefLabels[index];
         value = getLabelLocation(undef.label);
+
+        /* resolve dat label */
+        *((int *)((char *)instructions + undef.valueptr)) = value;
 
         if (value < 0) {
             printUnresolved(undef.label);
@@ -66,7 +70,7 @@ int getLabelLocation(const char * label) {
     return -1;
 }
 
-void saveUndefLabel(const char * label, int * valueptr) {
+void saveUndefLabel(const char * label, long valueptr) {
     UndefLabel newLabel;
     UndefLabel * temp;
     char * labelcpy = (char *) malloc(strlen(label));

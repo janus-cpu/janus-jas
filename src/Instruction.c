@@ -149,42 +149,128 @@ int instructionTypeAgreement(Instruction * instr) {
 }
 
 #define SIZE_BIT 0x00000200
+#define TYPE1_OFFSET 14
+#define TYPE2_OFFSET 16
+#define OP1_OFFSET 18
+#define OP2_OFFSET 25
 
-//static writeOffset; // TODO
+inline int hasCustomOffset(Operand * op) {
+    OperandSize size = op->size;
+    int offset = op->offset;
+
+    if (op->type != OT_REG_OFFSET) return 0;
+
+    if (offset < 0)
+        offset = -offset;
+
+    if (size == OPSZ_SHORT) {
+        return offset != 0 &&
+               offset != 1 &&
+               offset != 2 &&
+               offset != 3;
+    } else {
+        return offset != 0 &&
+               offset != 4 &&
+               offset != 8 &&
+               offset != 12;
+    }
+}
+
+/* returns the converted 3-bit special offset */
+static char bitOffset(int offset) {
+    switch (offset) {
+        case 0: return 0;
+
+        case 1:
+        case 4: return 1;
+
+        case 2:
+        case 8: return 2;
+
+        case 3:
+        case 12: return 3;
+
+        case -3:
+        case -12: return 4;
+
+        case -2:
+        case -8: return 5;
+
+        case -1:
+        case -4: return 6;
+
+        default: return 7;
+    }
+}
 
 int writeInstruction(Instruction * instr, FILE * stream) {
     int instruction = instr->opcode;
-    int constant = 0;
+    int op1_const = 0;
+    int op2_const = 0;
 
-    /* put size */
+    /* lay in size */
     if (instr->size == OPSZ_SHORT)
         instruction |= SIZE_BIT;
 
-    /* for op types */
+    /* lay in op types */
     Operand * op1 = &instr->op1;
     Operand * op2 = &instr->op2;
 
-    instruction |= (op1->type) << 14;
-    instruction |= (op2->type) << 16;
+    instruction |= (op1->type << TYPE1_OFFSET);
+    instruction |= (op2->type << TYPE2_OFFSET);
+
+    DEBUG("Writing instr %s with\n" \
+          "\top1 type %d, value %d, offset %d\n" \
+          "\top2 type %d, value %d, offset %d",
+           instr->name,
+           op1->type, op1->value, op1->offset,
+           op2->type, op2->value, op2->offset);
 
     /* operand 1*/
-    if (op1->type != OT_CONST)
-        instruction |= (op1->value << 18);
-    else
-        constant = op1->value;
+    if (op1->type == OT_CONST) {
+
+        op1_const = op1->value; /* if the operand is a constant */
+
+    } else if (op1->type == OT_REG_OFFSET) {
+
+        if (hasCustomOffset(op1)) {
+            op1_const = op1->offset;
+        } else {
+            instruction |= op1->value << OP1_OFFSET;
+            instruction |= bitOffset(op1->offset) << (OP1_OFFSET + 4);
+        }
+
+    } else {
+        instruction |= (op1->value << OP1_OFFSET);
+    }
 
     /* operand 2 */
-    if (op2->type != OT_CONST)
-        instruction |= op2->value << 25;
-    else
-        constant = op2->value;
+    if (op2->type == OT_CONST) {
+
+        op2_const = op2->value; /* if the operand is a constant */
+
+    } else if (op2->type == OT_REG_OFFSET) {
+
+        if (hasCustomOffset(op2)) {
+            op2_const = op2->offset;
+        } else {
+            instruction |= op2->value << OP2_OFFSET;
+            instruction |= bitOffset(op2->offset) << (OP2_OFFSET + 4);
+        }
+
+    } else {
+        instruction |= (op2->value << OP2_OFFSET);
+    }
 
     /* write the instruction to file */
     fwrite(&instruction, sizeof(int), 1, stream);
 
     /* include any custom offsets/constants in succeeding word */
-    if (op1->type == OT_CONST || op2->type == OT_CONST)
-        fwrite(&constant, sizeof(int), 1, stream);
+    if (op1->type == OT_CONST || hasCustomOffset(op1))
+        fwrite(&op1_const, sizeof(int), 1, stream);
+
+    if (op2->type == OT_CONST || hasCustomOffset(op2))
+        fwrite(&op2_const, sizeof(int), 1, stream);
 
     return EXIT_SUCCESS;
 }

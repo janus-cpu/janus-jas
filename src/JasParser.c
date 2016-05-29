@@ -12,9 +12,10 @@
 #include "Registers.h"
 
 /** local fn prototypes **/
-/* first pass fns */
 static void firstPass(void);
+static void secondPass(void);
 
+/* reading input */
 static void readInstruction(void);
 static void readLengthModifier(Instruction *);
 static void readOperands(Instruction *, enum TokenType);
@@ -22,20 +23,22 @@ static void readOperand(Operand *, enum TokenType);
 static int readNumber(void);
 static void readRegister(Operand *, enum TokenType);
 
+/* utility functions */
 static OperandSize opSizeOfNum(int);
 static int isRegister(enum TokenType);
-
-/* second pass fns */
-static void secondPass(void);
+static int isRegType(OperandType);
 
 /* final output stream */
 static FILE * ostream;
+
+/* ------------------------ Main Entry Functions  --------------------------- */
 
 /** entry function to begin parsing **/
 void parse(FILE * in, FILE * out) {
     yyin = in;
     ostream = out;
 
+    /* grab the first line */
     fgets(linebuf, MAX_LINE_LENGTH, in);
     linebuf[strlen(linebuf) - 1] = '\0';
     rewind(in);
@@ -45,7 +48,7 @@ void parse(FILE * in, FILE * out) {
 
     secondPass(); /* label resolution and type analysis */
 
-
+    /* prevent writing to file if there were errors */
     if (!yyerr) {
         /* write instructions to outfile */
         for (int i = 0; i < numinstrs; i++) {
@@ -86,6 +89,8 @@ static void secondPass(void) {
     resolveLabels();
 }
 
+/* ----------------------- "Read" Functions --------------------------------- */
+
 static void readLengthModifier(Instruction * instr) {
     yylex(); /* advance token */
 
@@ -94,7 +99,7 @@ static void readLengthModifier(Instruction * instr) {
     } else if (*yytext == 'l') {
         instr->size = OPSZ_LONG;
     } else {
-        yyerror("Invalid length modifier, expecting 's' or 'l'");
+        ERR_QUIT("Invalid length modifier, expecting 's' or 'l'");
     }
 }
 
@@ -109,18 +114,11 @@ static int readNumber(void) {
     }
 
     /* check for int size (we can support max of 32 bits) */
-    if (value < INT_MIN || UINT_MAX < value) { /* FIXME what are the ranges */
+    if (value < INT_MIN || UINT_MAX < value) {
         yyerror("Integer larger than 32 bits.");
     }
 
     return (int) value;
-}
-
-static OperandSize opSizeOfNum(int value) {
-    if (CHAR_MIN <= value && value <= CHAR_MAX)
-        return OPSZ_SHORT; /* can fit into 8 bits */
-    else
-        return OPSZ_LONG;  /* fits into 32 bits */
 }
 
 static void readRegister(Operand * op, enum TokenType token) {
@@ -135,14 +133,7 @@ static void readRegister(Operand * op, enum TokenType token) {
     op->value = getRegisterId(yytext);
 }
 
-static int isRegister(enum TokenType token) {
-    return (token == TOK_L_REG || token == TOK_S_REG ||
-            token == TOK_EXTRA_REG || token == TOK_KERN_REG ||
-            token == TOK_PTR_REG);
-}
-
 static void readOperands(Instruction * instr, enum TokenType token) {
-    /* XXX: assume 2 operands ? */
 
     if (token != TOK_NL) {
         readOperand(&instr->op1, token);
@@ -158,7 +149,7 @@ static void readOperands(Instruction * instr, enum TokenType token) {
         instr->op2.size = 0;
         return; /* two-op */
     } else {
-        yyerror("Invalid operand.");
+        ERR_QUIT("Invalid operand.");
     }
 
 }
@@ -174,6 +165,8 @@ static void readOperand(Operand * op, enum TokenType token) {
         op->value = value;
         op->size = opSizeOfNum(value);
         /* .offset member irrelevant */
+
+        lcounter++; /* constant takes up an extra word of space */
 
     } else if (isRegister(token)) {
 
@@ -209,13 +202,13 @@ static void readOperand(Operand * op, enum TokenType token) {
                     /* next token must be a closing bracket */
                     token = yylex();
                     if (token != TOK_RBRACKET) {
-                        yyerror("Expected ']'.");
+                        ERR_QUIT("Expected ']'.");
                     }
                 } else {
-                    yyerror("Expected number for offset.");
+                    ERR_QUIT("Expected number for offset.");
                 }
             } else {
-                yyerror("Expected '+', '-', or ']'.");
+                ERR_QUIT("Expected '+', '-', or ']'.");
             }
 
         } else if (token == TOK_NUM) {
@@ -234,10 +227,10 @@ static void readOperand(Operand * op, enum TokenType token) {
                 /* next token should be a register */
                 readRegister(op, token);
             } else {
-                yyerror("Expected '+'.");
+                ERR_QUIT("Expected '+'.");
             }
         } else {
-            yyerror("Expected register or number following '['.");
+            ERR_QUIT("Expected register or number following '['.");
         }
     } else if (token == TOK_WORD) {
         /* assume it's a label, try to do label resolution
@@ -246,25 +239,24 @@ static void readOperand(Operand * op, enum TokenType token) {
         op->size = OPSZ_LONG;
         op->value = getLabelLocation(yytext);
 
+        lcounter++; /* label address takes up word of space */
+
         if (op->value == -1) {
-            saveUndefLabel(yytext, &op->value);
+            saveUndefLabel(yytext,
+                           (char *)&op->value - (char *)instructions);
+                           // FIXME: unclean
         }
     } else if (strlen(yytext) == 0) {
         /* no operands */
     } else {
-        yyerror("Unrecognizable operand.");
+        ERR_QUIT("Unrecognizable operand.");
     }
+
 }
 
 /* opcodes for CMP and TEST */
 #define OP_CMP  0x05
 #define OP_TEST 0x07
-
-static int isRegType(OperandType type) {
-    return type == OT_REG ||
-           type == OT_REG_ACCESS ||
-           type == OT_REG_OFFSET;
-}
 
 static void readInstruction(void) {
     enum TokenType token;
@@ -272,43 +264,73 @@ static void readInstruction(void) {
 
     /* if word, but not instruction */
     if (!isInstruction(yytext)) {
-        yyerror("Line does not contain a valid instruction.");
-        /* FIXME: account for possible .ascii declarations etc??? */
+        ERR_QUIT("Line does not contain a valid instruction.");
+        /* FIXME: account for possible .ascii declarations etc? */
     }
 
-    /* interpret as instruction anyway */
-
     Instruction * newInstr;
-    newInstr= saveInstruction(yytext); /* create new instr entry */
+    newInstr = saveInstruction(yytext); /* create new instr entry */
 
     token = yylex(); /* two possibilities: length modifier or operand */
 
     if (token == TOK_DOT) {
         /* the next character must be a valid modifier */
         readLengthModifier(newInstr);
-
     }
 
     /* next lexeme must be an operand */
     readOperands(newInstr, token);
 
+    /** special cases **/
     /* special case for CMP and TEST */
     if (newInstr->opcode == OP_CMP || newInstr->opcode == OP_TEST) {
+
         /* check the operand types and assign the prototype accordingly */
         if (isRegType(newInstr->op2.type))
+
             newInstr->type = IT_A;
+
         else if (isRegType(newInstr->op1.type)) {
+
             newInstr->type = IT_B;
             newInstr->opcode++; /* increase opcode to the B opcode */
+
         }
+    }
+
+    /* non-custom offsets: this is just to check if we need to increase location counter */
+    if (hasCustomOffset(&newInstr->op1) || hasCustomOffset(&newInstr->op2)) {
+        lcounter++;
     }
 
     /** semantic checks **/
     if (!instructionSizeAgreement(newInstr)) {
-        yyerror("Instruction operands' sizes are not in agreement.");
+        ERR_QUIT("Instruction operands' sizes are not in agreement.");
     }
 
     if (!instructionTypeAgreement(newInstr)) {
-        yyerror("Instruction operands do not agree with its prototype.");
+        ERR_QUIT("Instruction operands do not agree with its prototype.");
     }
+}
+
+
+/* -------------------------- Utility Functions ----------------------------- */
+
+static OperandSize opSizeOfNum(int value) {
+    if (CHAR_MIN <= value && value <= CHAR_MAX)
+        return OPSZ_SHORT; /* can fit into 8 bits */
+    else
+        return OPSZ_LONG;  /* fits into 32 bits */
+}
+
+static int isRegister(enum TokenType token) {
+    return (token == TOK_L_REG || token == TOK_S_REG ||
+            token == TOK_EXTRA_REG || token == TOK_KERN_REG ||
+            token == TOK_PTR_REG);
+}
+
+static int isRegType(OperandType type) {
+    return type == OT_REG ||
+           type == OT_REG_ACCESS ||
+           type == OT_REG_OFFSET;
 }

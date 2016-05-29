@@ -8,6 +8,8 @@
 #define ERROR_STRING "\033[1m%s:%d: \033[31merror\033[39m: %s\n" \
                      ">>>>\033[0m%s\n"
 
+#define ERR_QUIT(msg) yyerror(msg); return
+
 /* passed to strtol to read in any base */
 #define ANY_BASE 0
 
@@ -15,7 +17,6 @@
 enum TokenType {
 
     TOK_LABEL,      /* basically TOK_WORD followed by a colon */
-    /*TOK_REG,*/
 
     TOK_L_REG,      /* register tokens */
     TOK_S_REG,
@@ -34,8 +35,6 @@ enum TokenType {
     TOK_RBRACKET,
     TOK_COMMA,
     TOK_NL,
-
-    TOK_OTHER = -2  /* FIXME: is this really necessary? */
 };
 
 /** flex externs **/
