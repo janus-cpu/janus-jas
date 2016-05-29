@@ -219,10 +219,10 @@ int writeInstruction(Instruction * instr, FILE * stream) {
     instruction |= (op1->type << TYPE1_OFFSET);
     instruction |= (op2->type << TYPE2_OFFSET);
 
-    DEBUG("Writing instr %s with\n" \
+    DEBUG("Writing instr %s:0x%x with\n" \
           "\top1 type %d, value %d, offset %d\n" \
           "\top2 type %d, value %d, offset %d",
-           instr->name,
+           instr->name, instr->opcode,
            op1->type, op1->value, op1->offset,
            op2->type, op2->value, op2->offset);
 

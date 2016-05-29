@@ -51,7 +51,7 @@ void saveLabel(const char * label, int location) {
     /* load new label, remove `:' , insert into table */
     newRec.label = strncpy(labelcpy, label, strlen(label));
     newRec.label[strlen(label) - 1] = '\0'; /* null terminate */
-    newRec.location = location;
+    newRec.location = location * 4; /* by 4 to get memory location */
     symTab[numlabels++] = newRec;
 
     DEBUG("Symtab[%ld] Inserted `%s', location %d",
