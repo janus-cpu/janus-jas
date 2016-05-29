@@ -57,9 +57,13 @@ void parse(FILE * in, FILE * out) {
 static void firstPass(void) {
     enum TokenType token;
 
-    /* read until end-of-input */
+    /* read line-by-line until end-of-input */
     while ((token = yylex()) != EOF) {
 
+        /* skip empty lines */
+        if (token == TOK_NL) continue;
+
+        /* non-empty line: */
         /* two possibilities: label or instruction */
         if (token == TOK_LABEL) {
 
@@ -72,18 +76,9 @@ static void firstPass(void) {
 
             readInstruction();
 
-        } else if (token != TOK_NL) {
+        } else {
             yyerror("Line must start with label or instruction.");
         }
-
-        /* should be a newline after non-empty lines, except at EOF */
-        /* FIXME there must be a better way to do this check tbh */
-        if (token != TOK_NL &&
-            (token = yylex()) != TOK_NL &&
-            token != EOF ) {
-            yyerror("Instructions must be on separate lines.");
-        }
-
     }
 }
 
@@ -151,17 +146,19 @@ static void readOperands(Instruction * instr, enum TokenType token) {
 
     if (token != TOK_NL) {
         readOperand(&instr->op1, token);
-    } else {
-        return;
+    } else if (token == TOK_NL) {
+        return; /* one-op */
     }
 
     token = yylex();
     if (token == TOK_COMMA) {
         readOperand(&instr->op2, yylex());
-    } else {
+    } else if (token == TOK_NL) {
         /* no second operand */
         instr->op2.size = 0;
-        return;
+        return; /* two-op */
+    } else {
+        yyerror("Invalid operand.");
     }
 
 }
@@ -290,10 +287,10 @@ static void readInstruction(void) {
         /* the next character must be a valid modifier */
         readLengthModifier(newInstr);
 
-    } else {
-        /* next lexeme must be an operand */
-        readOperands(newInstr, token);
     }
+
+    /* next lexeme must be an operand */
+    readOperands(newInstr, token);
 
     /* special case for CMP and TEST */
     if (newInstr->opcode == OP_CMP || newInstr->opcode == OP_TEST) {
