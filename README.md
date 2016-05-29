@@ -15,7 +15,6 @@ The Janus Assembler (`jas`) uses Flex and C to generate machine code for the
 If you want to check out `jas` for yourself, clone the repo:
 ```
 $ git clone https://github.com/pencels/jas.git
-
 ```
 
 and `make` the `jas` executable. Of course, you'd also need to have
