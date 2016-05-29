@@ -15,14 +15,23 @@ static int isShortRegister(char endchar) {
 }
 
 RegisterId getRegisterId(const char * name) {
-    RegisterId id;
+    RegisterId id = 0;
     char * endptr;
 
     /* move 1 byte past the 'r' */
     name = name + 1;
 
+    /* check for aliased registers */
+    switch (*name) {
+        case 's': return 14;
+        case 'f': return 15;
+        case 'e': id = 16; name++; break;
+        case 'k': id = 24; name++; break;
+    }
+
+
     errno = 0;
-    id = (RegisterId) strtol(name, &endptr, REG_BASE);
+    id += (RegisterId) strtol(name, &endptr, REG_BASE);
 
     if (isShortRegister(*endptr)) {
         id *= REG_SIZE;

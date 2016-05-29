@@ -1,6 +1,9 @@
+; aliased registers!!
 
-; do offsets work?????
+    mov 10, rs
+    mov 10, r14
 
-    mov [r0 + 4], r1
-    mov [r0 + 42], r1
-    mov r0, r1
+    mov -1, r0
+
+    mov 10, rf
+    mov 10, r15
