@@ -3,6 +3,7 @@
 ;
 
 main:
+	mov     1000, r14 ; move the stack pointer to somewhere sensible.
 	push	0x00
 	push	0x0A
 	push	0x6F
@@ -24,3 +25,4 @@ loop:
 	jne	loop
 
 end:
+	hlt
