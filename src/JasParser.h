@@ -8,6 +8,9 @@
 #define ERROR_STRING "\033[1m%s:%d: \033[31merror\033[39m: %s\n" \
                      ">>>>\033[0m%s\n"
 
+/* passed to strtol to read in any base */
+#define ANY_BASE 0
+
 /** enum for the token types to expect **/
 enum TokenType {
 
@@ -34,6 +37,14 @@ enum TokenType {
 
     TOK_OTHER = -2  /* FIXME: is this really necessary? */
 };
+
+/** flex externs **/
+extern FILE * yyin;
+extern char * yytext;
+extern int yylex(void);
+extern int yyerr;
+extern void yyerror(const char *);
+extern char linebuf[];
 
 /** function prototypes **/
 void parse(FILE * in, FILE * out);

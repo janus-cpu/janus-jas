@@ -9,6 +9,7 @@ extern char * infilename;
 /* count line numbers, store lines */
 int lineno = 1;
 int yycolumn = 1;
+int yyerr = 0;
 char linebuf[MAX_LINE_LENGTH];
 
 struct YYLTYPE {
@@ -35,6 +36,7 @@ void yyerror(const char * msg) {
         fprintf(stderr, " ");
     }
     fprintf(stderr, "^\n");
+    yyerr = 1;
 }
 
 %}

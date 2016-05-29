@@ -26,7 +26,19 @@ const InstrRecord instrLookup[] = {
     {"CALL",   0x3c,   IT_U},
     {"RET",   0x3d,   IT_N},
     {"HLT",   0x3e,   IT_N},
+    {"LOM",   0x40,   IT_U},
+    {"ROM",   0x41,   IT_P},
+    {"LOI",   0x42,   IT_U},
+    {"ROI",   0x43,   IT_P},
+    {"ROP",   0x44,   IT_P},
+    {"LFL",   0x45,   IT_U},
+    {"RFL",   0x46,   IT_P},
     {"MOV",   0x50,   IT_A},
+    {"POP",   0x51,   IT_P},
+    {"PUSH",   0x52,   IT_U},
+    {"IN",   0x53,   IT_I},
+    {"OUT",   0x54,   IT_I},
+    {"XCHG",   0x55,   IT_X},
     {NULL} /* sentinel */
 
 };

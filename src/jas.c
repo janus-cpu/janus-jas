@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
     else {
         infilename = *infilenameptr;
         infile = fopen(infilename, "rb"); /* TODO: this will eventually
-                                                loop to include more files!! */
+                                             loop to include more files!! */
     }
 
     if (infile == NULL) {
@@ -66,6 +66,9 @@ int main(int argc, char *argv[]) {
 
     fflush(outfile);
     fclose(outfile);
+
+    /* delete error file */
+    if (yyerr) remove(outfilename);
 
     return EXIT_SUCCESS;
 }

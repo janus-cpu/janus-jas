@@ -11,15 +11,6 @@
 #include "Labels.h"
 #include "Registers.h"
 
-/* passed to strtol to read in any base */
-#define ANY_BASE 0
-
-/** flex externs **/
-extern FILE * yyin;
-extern char * yytext;
-extern int yylex(void);
-extern void yyerror(const char *);
-
 /** local fn prototypes **/
 /* first pass fns */
 static void firstPass(void);
@@ -45,11 +36,21 @@ void parse(FILE * in, FILE * out) {
     yyin = in;
     ostream = out;
 
-    firstPass(); /* initial parsing, label recognition, type saving and syntax checks */
+    fgets(linebuf, MAX_LINE_LENGTH, in);
+    linebuf[strlen(linebuf) - 1] = '\0';
+    rewind(in);
+
+    firstPass(); /* initial parsing, label recognition,
+                    type saving and syntax checks */
+
     secondPass(); /* label resolution and type analysis */
 
-    for (int i = 0; i < numinstrs; i++) {
-        writeInstruction(&instructions[i], ostream);
+
+    if (!yyerr) {
+        /* write instructions to outfile */
+        for (int i = 0; i < numinstrs; i++) {
+            writeInstruction(&instructions[i], ostream);
+        }
     }
 }
 
@@ -75,8 +76,11 @@ static void firstPass(void) {
             yyerror("Line must start with label or instruction.");
         }
 
-        /* should be a newline after these */
-        if (token != TOK_NL && yylex() != TOK_NL) {
+        /* should be a newline after non-empty lines, except at EOF */
+        /* FIXME there must be a better way to do this check tbh */
+        if (token != TOK_NL &&
+            (token = yylex()) != TOK_NL &&
+            token != EOF ) {
             yyerror("Instructions must be on separate lines.");
         }
 
@@ -155,8 +159,8 @@ static void readOperands(Instruction * instr, enum TokenType token) {
     if (token == TOK_COMMA) {
         readOperand(&instr->op2, yylex());
     } else {
-        /* have operand two "agree" in size */
-        instr->op2.size = instr->op1.size;
+        /* no second operand */
+        instr->op2.size = 0;
         return;
     }
 

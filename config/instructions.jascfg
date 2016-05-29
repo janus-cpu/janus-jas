@@ -52,12 +52,31 @@ AND	0x11	A
 OR	0x12	A
 XOR	0x13	A
 
+
 ; Control Flow
 JMP	0x30	U
-; conditional jumps later
+; conditional JMP later
 CALL	0x3C	U
 RET	0x3D	N
 HLT	0x3E	N
 
+
+; Special Registers/Processor Control
+LOM	0x40	U
+ROM	0x41	P
+LOI	0x42	U
+ROI	0x43	P
+ROP	0x44	P
+LFL	0x45	U
+RFL	0x46	P
+
+
 ; Miscellaneous Instruction
 MOV	0x50	A
+POP	0x51	P
+PUSH	0x52	U
+IN	0x53	I
+OUT	0x54	I
+XCHG	0x55	X
+; conditional MOV later
+

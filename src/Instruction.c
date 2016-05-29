@@ -74,6 +74,13 @@ int instructionSizeAgreement(Instruction * instr) {
     Operand * op2 = &instr->op2;
     int result;
 
+    /* don't need to do size agreement for no-op, one-op */
+    if (instr->type == IT_N ||
+        instr->type == IT_P ||
+        instr->type == IT_U) {
+        return 1;
+    }
+
     /* when sizes disagree, widen numbers if needed */
     if (op1->size != op2->size) {
         if (op1->type == OT_CONST) op1->size = OPSZ_LONG;
@@ -93,6 +100,10 @@ int instructionSizeAgreement(Instruction * instr) {
 int instructionTypeAgreement(Instruction * instr) {
     Operand * op1 = &instr->op1;
     Operand * op2 = &instr->op2;
+
+    DEBUG("checking %s with type %d\n\top1 %d op2 %d",
+            instr->name, instr->type,
+            instr->op1.size, instr->op2.size);
 
     /* check that the operands' sizes and types agree
      * with the instruction's prototype */
