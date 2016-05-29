@@ -1,3 +1,5 @@
-a.out
-jas
+*.sw*
 *.o
+jas
+*.out
+TODO
