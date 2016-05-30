@@ -59,7 +59,7 @@ REGISTER {GEN_L_REG}|{GEN_S_REG}|{EXTRA_REG}|{KERN_REG}|{FLAG_REG}|{PTR_REG}
 
 %%
 
-";"[^;\n]*$                     {/* comment */}
+;[^\n]*$                     {/* comment */}
 
 {ALPHA}{ALNUM}*:                { return TOK_LABEL; }
 {GEN_L_REG}                     { return TOK_L_REG; }
@@ -69,8 +69,12 @@ REGISTER {GEN_L_REG}|{GEN_S_REG}|{EXTRA_REG}|{KERN_REG}|{FLAG_REG}|{PTR_REG}
 {PTR_REG}                       { return TOK_PTR_REG; }
  /* {REGISTER}                      { return TOK_REG; } */
 
+[dD][sSbBwW]                    { return TOK_DATA_SEG; }
 {ALPHA}{ALNUM}*                 { return TOK_WORD; }
-[+-]?(0|{OCT}|{HEX}|{DEC})  { return TOK_NUM; }
+[+-]?(0|{OCT}|{HEX}|{DEC})      { return TOK_NUM; }
+\"(\\.|[^\\"])*\"               { yytext++; /* extract inner stringth */
+                                  yytext[strlen(yytext)-1] = '\0';
+                                  return TOK_STRING_LITERAL; }
 
 "+"                             { return TOK_PLUS; }
 "-"                             { return TOK_MINUS; }

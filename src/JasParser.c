@@ -49,12 +49,10 @@ void parse(FILE * in, FILE * out) {
     secondPass(); /* label resolution and type analysis */
 
     /* prevent writing to file if there were errors */
-    if (!yyerr) {
+    // TODO uncomment: if (!yyerr) {
         /* write instructions to outfile */
-        for (int i = 0; i < numinstrs; i++) {
-            writeInstruction(&instructions[i], ostream);
-        }
-    }
+        writeInstructions(out);
+    //}
 }
 
 static void firstPass(void) {
@@ -70,14 +68,57 @@ static void firstPass(void) {
         /* two possibilities: label or instruction */
         if (token == TOK_LABEL) {
 
-            saveLabel(yytext, lcounter);
-            /* if newline after, just continue through */
-            if (yylex() == TOK_NL) continue;
-            else readInstruction();
+            saveLabel(yytext, instrPtr);
 
         } else if (token == TOK_WORD) {
 
             readInstruction();
+
+        } else if (token == TOK_DATA_SEG) {
+
+            /* what kind of segment is it? */
+            switch (yytext[strlen(yytext)-1]) {
+                case 's': {
+                    token = yylex();
+                    if (token == TOK_STRING_LITERAL) {
+                        char * lptr = yytext;
+                        char letter;
+                        char * temp;
+
+                        /* reallocate space for string */
+                        instrCap = instrPtr + strlen(yytext);
+                        temp = (char *) realloc(instrBuffer, instrCap);
+                        if (temp == NULL) {
+                            fprintf(stderr, "realloc() error.\n");
+                            exit(1);
+                        }
+                        instrBuffer = temp;
+
+                        while (*lptr != '\0') {
+                            letter = *lptr;
+
+                            if (letter == '\\') {
+                                switch (*++lptr) {
+                                    case '0': letter = '\0'; break;
+                                    case 'n': letter = '\n'; break;
+                                    case 't': letter = '\t'; break;
+                                }
+                            }
+
+                            /* save character into the buffer */
+                            instrBuffer[instrPtr++] = letter;
+                            lptr++;
+                        }
+                    } else {
+                        yyerror("Expected string.");
+                    }
+                    break;
+                }
+
+                default:
+                    // FIXME for bytes and words
+                    yyerror("Not implemented yet :c");
+            }
 
         } else {
             yyerror("Line must start with label or instruction.");
@@ -166,8 +207,6 @@ static void readOperand(Operand * op, enum TokenType token) {
         op->size = opSizeOfNum(value);
         /* .offset member irrelevant */
 
-        lcounter++; /* constant takes up an extra word of space */
-
     } else if (isRegister(token)) {
 
         readRegister(op, token);
@@ -239,12 +278,9 @@ static void readOperand(Operand * op, enum TokenType token) {
         op->size = OPSZ_LONG;
         op->value = getLabelLocation(yytext);
 
-        lcounter++; /* label address takes up word of space */
-
+        /* save undefined labels, increment to next avail space */
         if (op->value == -1) {
-            saveUndefLabel(yytext,
-                           (char *)&op->value - (char *)instructions);
-                           // FIXME: unclean
+            saveUndefLabel(yytext, instrPtr + sizeof(int));
         }
     } else if (strlen(yytext) == 0) {
         /* no operands */
@@ -260,7 +296,6 @@ static void readOperand(Operand * op, enum TokenType token) {
 
 static void readInstruction(void) {
     enum TokenType token;
-    lcounter++; /* count for a new instruction */
 
     /* if word, but not instruction */
     if (!isInstruction(yytext)) {
@@ -268,48 +303,62 @@ static void readInstruction(void) {
         /* FIXME: account for possible .ascii declarations etc? */
     }
 
-    Instruction * newInstr;
-    newInstr = saveInstruction(yytext); /* create new instr entry */
+    Instruction newInstr = {0};
+    InstrRecord info;
+
+    /* get opcode for the instruction */
+    getInstrInfo(yytext, &info);
+    newInstr.name = info.name;
+    newInstr.type = info.type;
+    newInstr.opcode = info.opcode;
 
     token = yylex(); /* two possibilities: length modifier or operand */
 
     if (token == TOK_DOT) {
         /* the next character must be a valid modifier */
-        readLengthModifier(newInstr);
+        readLengthModifier(&newInstr);
     }
 
     /* next lexeme must be an operand */
-    readOperands(newInstr, token);
+    readOperands(&newInstr, token);
 
     /** special cases **/
     /* special case for CMP and TEST */
-    if (newInstr->opcode == OP_CMP || newInstr->opcode == OP_TEST) {
+    if (newInstr.opcode == OP_CMP || newInstr.opcode == OP_TEST) {
 
         /* check the operand types and assign the prototype accordingly */
-        if (isRegType(newInstr->op2.type))
+        if (isRegType(newInstr.op2.type))
 
-            newInstr->type = IT_A;
+            newInstr.type = IT_A;
 
-        else if (isRegType(newInstr->op1.type)) {
+        else if (isRegType(newInstr.op1.type)) {
 
-            newInstr->type = IT_B;
-            newInstr->opcode++; /* increase opcode to the B opcode */
+            newInstr.type = IT_B;
+            newInstr.opcode++; /* increase opcode to the B opcode */
 
         }
     }
 
-    /* non-custom offsets: this is just to check if we need to increase location counter */
-    if (hasCustomOffset(&newInstr->op1) || hasCustomOffset(&newInstr->op2)) {
-        lcounter++;
-    }
+    /* non-custom offsets: this is just to check if we need to increase location
+     * counter */
+    if (hasCustomOffset(&newInstr.op1))
+        instrPtr += sizeof(int);
+
+    if (hasCustomOffset(&newInstr.op2))
+        instrPtr += sizeof(int);
 
     /** semantic checks **/
-    if (!instructionSizeAgreement(newInstr)) {
+    if (!instructionSizeAgreement(&newInstr)) {
         ERR_QUIT("Instruction operands' sizes are not in agreement.");
     }
 
-    if (!instructionTypeAgreement(newInstr)) {
+    if (!instructionTypeAgreement(&newInstr)) {
         ERR_QUIT("Instruction operands do not agree with its prototype.");
+    }
+
+    /* write the machine code for this instruction into the buffer */
+    if (saveInstruction(&newInstr)) {
+        ERR_QUIT("Could not write instruction!");
     }
 }
 

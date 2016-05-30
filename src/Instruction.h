@@ -80,8 +80,10 @@ typedef struct {
 extern const InstrRecord instrLookup[];
 
 /* instructions list */
-extern Instruction * instructions;
-extern long numinstrs;
+extern Instruction * instructions; /* FIXME: get rid of eventually lmeaux */
+extern char * instrBuffer; /* use this to write directly to file */
+extern long instrPtr; /* points to next available (byte) space in the buffer */
+extern long instrCap;
 
 /* location counter */
 extern long lcounter;
@@ -93,9 +95,9 @@ int isInstruction(const char * name);
 int hasCustomOffset(Operand * op);
 
 /* saving and writing instructions */
-Instruction * saveInstruction(const char * name);
+int saveInstruction(Instruction * instr);
 int instructionSizeAgreement(Instruction * instr);
 int instructionTypeAgreement(Instruction * instr);
-int writeInstruction(Instruction * instr, FILE * stream);
+int writeInstructions(FILE * stream);
 
 #endif

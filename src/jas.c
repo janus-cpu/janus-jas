@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
     fclose(outfile);
 
     /* delete error file */
-    if (yyerr) remove(outfilename);
+    //TODO uncomment: if (yyerr) remove(outfilename);
 
     return EXIT_SUCCESS;
 }

@@ -25,7 +25,9 @@ enum TokenType {
     TOK_PTR_REG,
 
     TOK_WORD,       /* identifier, numbers */
+    TOK_DATA_SEG,
     TOK_NUM,
+    TOK_STRING_LITERAL,
 
     TOK_PLUS,       /* operators */
     TOK_MINUS,

@@ -23,7 +23,7 @@ void resolveLabels(void) {
         value = getLabelLocation(undef.label);
 
         /* resolve dat label */
-        *((int *)((char *)instructions + undef.valueptr)) = value;
+        memcpy(instrBuffer + undef.valueptr, &value, sizeof(value));
 
         if (value < 0) {
             printUnresolved(undef.label);
@@ -40,9 +40,6 @@ void saveLabel(const char * label, int location) {
     LabelRec * temp;
     char * labelcpy = (char *) malloc(strlen(label));
 
-    /* account for offset in location to next instr */
-    location++;
-
     /* allocate more space for table */
     temp = (LabelRec *) realloc(symTab, sizeof(LabelRec) * (numlabels + 1));
     if (temp == NULL) { fprintf(stderr, "realloc() error.\n"); return; }
@@ -51,23 +48,11 @@ void saveLabel(const char * label, int location) {
     /* load new label, remove `:' , insert into table */
     newRec.label = strncpy(labelcpy, label, strlen(label));
     newRec.label[strlen(label) - 1] = '\0'; /* null terminate */
-    newRec.location = location * 4; /* by 4 to get memory location */
+    newRec.location = location;
     symTab[numlabels++] = newRec;
 
     DEBUG("Symtab[%ld] Inserted `%s', location %d",
             numlabels - 1, newRec.label, newRec.location);
-}
-
-int getLabelLocation(const char * label) {
-    /* search the array pls */
-    int i;
-    for (i = 0; i < numlabels; i++) {
-        if (0 == strcmp(symTab[i].label, label)) {
-            return symTab[i].location;
-        }
-    }
-
-    return -1;
 }
 
 void saveUndefLabel(const char * label, long valueptr) {
@@ -92,3 +77,14 @@ void saveUndefLabel(const char * label, long valueptr) {
             numundef - 1, newLabel.label);
 }
 
+int getLabelLocation(const char * label) {
+    /* search the array pls */
+    int i;
+    for (i = 0; i < numlabels; i++) {
+        if (0 == strcmp(symTab[i].label, label)) {
+            return symTab[i].location;
+        }
+    }
+
+    return -1;
+}

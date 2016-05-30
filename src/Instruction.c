@@ -10,37 +10,13 @@
 
 /* list of instructions */
 Instruction * instructions;
-long numinstrs;
+char * instrBuffer;
+long instrPtr;
+long instrCap;
 
 /* count of instruction address location */
 /* -1 since we pre-increment upon encountering a new instruction */
 long lcounter = -1;
-
-Instruction * saveInstruction(const char * name) {
-    Instruction save = {0}; /* zero-fill */
-    Instruction * temp;     /* for return from realloc */
-    InstrRecord instructionInfo;
-
-    /* allocate more space for list */
-    temp = (Instruction *)
-            realloc(instructions, sizeof(Instruction) * (numinstrs + 1));
-    if (temp == NULL) { fprintf(stderr, "realloc() error.\n"); exit(1); }
-    instructions = temp;
-
-    /* populate new instruction */
-    getInstrInfo(name, &instructionInfo);
-    save.name = instructionInfo.name;
-    save.type = instructionInfo.type;
-    save.opcode = instructionInfo.opcode;
-
-    /* insert into list */
-    instructions[numinstrs] = save;
-
-    DEBUG("instructions[%ld] inserted %s:0x%x",
-            numinstrs, name, save.opcode);
-
-    return (instructions + numinstrs++);
-}
 
 int getInstrInfo(const char * name, InstrRecord * outRecord) {
     const InstrRecord * record = instrLookup;
@@ -67,6 +43,10 @@ int getInstrInfo(const char * name, InstrRecord * outRecord) {
 
     /* if not found, zero */
     return 0;
+}
+
+int isInstruction(const char * name) {
+    return getInstrInfo(name, NULL);
 }
 
 int instructionSizeAgreement(Instruction * instr) {
@@ -203,10 +183,12 @@ static char bitOffset(int offset) {
     }
 }
 
-int writeInstruction(Instruction * instr, FILE * stream) {
+int saveInstruction(Instruction * instr) {
     int instruction = instr->opcode;
     int op1_const = 0;
     int op2_const = 0;
+
+    char * temp;     /* for return from realloc */
 
     /* lay in size */
     if (instr->size == OPSZ_SHORT)
@@ -262,19 +244,36 @@ int writeInstruction(Instruction * instr, FILE * stream) {
         instruction |= (op2->value << OP2_OFFSET);
     }
 
-    /* write the instruction to file */
-    fwrite(&instruction, sizeof(int), 1, stream);
+    /* TODO: make conditional */
+    /* allocate more space for list if needed */
+    instrCap = instrPtr + 3 * sizeof(int); /* increase capacity */
+
+    /* realloc */
+    temp = (char *) realloc(instrBuffer, instrCap);
+    if (temp == NULL) {
+        fprintf(stderr, "realloc() error.\n");
+        return EXIT_FAILURE;
+    }
+    instrBuffer = temp;
+
+    /* add instruction to buffer */
+    memcpy(instrBuffer + instrPtr, &instruction, sizeof(instruction));
+    instrPtr += sizeof(instruction);
 
     /* include any custom offsets/constants in succeeding word */
-    if (op1->type == OT_CONST || hasCustomOffset(op1))
-        fwrite(&op1_const, sizeof(int), 1, stream);
-
-    if (op2->type == OT_CONST || hasCustomOffset(op2))
-        fwrite(&op2_const, sizeof(int), 1, stream);
+    if (op1->type == OT_CONST || hasCustomOffset(op1)) {
+        memcpy(instrBuffer + instrPtr, &op1_const, sizeof(op1_const));
+        instrPtr += sizeof(op1_const);
+    }
+    if (op2->type == OT_CONST || hasCustomOffset(op2)) {
+        memcpy(instrBuffer + instrPtr, &op2_const, sizeof(op2_const));
+        instrPtr += sizeof(op2_const);
+    }
 
     return EXIT_SUCCESS;
 }
 
-int isInstruction(const char * name) {
-    return getInstrInfo(name, NULL);
+int writeInstructions(FILE * stream) {
+    fwrite(instrBuffer, sizeof(char), instrPtr, stream);
+    return EXIT_SUCCESS; /* TODO: may not be successful? */
 }
