@@ -9,14 +9,9 @@
 #include "InstructionList.h"
 
 /* list of instructions */
-Instruction * instructions;
 char * instrBuffer;
 long instrPtr;
 long instrCap;
-
-/* count of instruction address location */
-/* -1 since we pre-increment upon encountering a new instruction */
-long lcounter = -1;
 
 int getInstrInfo(const char * name, InstrRecord * outRecord) {
     const InstrRecord * record = instrLookup;

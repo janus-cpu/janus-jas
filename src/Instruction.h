@@ -90,13 +90,9 @@ typedef struct {
 extern const InstrRecord instrLookup[];
 
 /* instructions list */
-extern Instruction * instructions; /* FIXME: get rid of eventually lmeaux */
 extern char * instrBuffer; /* use this to write directly to file */
 extern long instrPtr; /* points to next available (byte) space in the buffer */
 extern long instrCap;
-
-/* location counter */
-extern long lcounter;
 
 /** function prototypes **/
 /* looking up instructions */
