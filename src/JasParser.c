@@ -339,14 +339,6 @@ static void readInstruction(void) {
         }
     }
 
-    /* non-custom offsets: this is just to check if we need to increase location
-     * counter */
-    if (hasCustomOffset(&newInstr.op1))
-        instrPtr += sizeof(int);
-
-    if (hasCustomOffset(&newInstr.op2))
-        instrPtr += sizeof(int);
-
     /** semantic checks **/
     if (!instructionSizeAgreement(&newInstr)) {
         ERR_QUIT("Instruction operands' sizes are not in agreement.");
