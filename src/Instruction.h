@@ -85,6 +85,13 @@ typedef struct {
     InstructionType type;
 } InstrRecord;
 
+/* Bit offsets for saving the instruction */
+#define SIZE_BIT     0x00000200
+#define TYPE1_OFFSET 14
+#define TYPE2_OFFSET 16
+#define OP1_OFFSET   18
+#define OP2_OFFSET   25
+
 /** Extern declarations **/
 /* mnemonics table */
 extern const InstrRecord instrLookup[];

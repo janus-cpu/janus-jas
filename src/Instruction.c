@@ -126,12 +126,6 @@ int instructionTypeAgreement(Instruction * instr) {
     }
 }
 
-#define SIZE_BIT 0x00000200
-#define TYPE1_OFFSET 14
-#define TYPE2_OFFSET 16
-#define OP1_OFFSET 18
-#define OP2_OFFSET 25
-
 inline int hasCustomOffset(Operand * op) {
     OperandSize size = op->size;
     int offset = op->offset;
