@@ -61,10 +61,17 @@ int instructionSizeAgreement(Instruction * instr) {
         return 1;
     }
 
-    /* when sizes disagree, widen numbers if needed */
+    /* "widen/narrow" operands if needed */
     if (op1->size != op2->size) {
         if (op1->type == OT_CONST) op1->size = OPSZ_LONG;
         else if (op2->type == OT_CONST) op2->size = OPSZ_LONG;
+
+        if (instr->size != 0) {
+            if (op1->type == OT_REG_ACCESS || op1->type == OT_REG_OFFSET)
+                op1->size = instr->size;
+            if (op2->type == OT_REG_ACCESS || op2->type == OT_REG_OFFSET)
+                op2->size = instr->size;
+        }
     }
 
     /* test that both sizes are the same */
@@ -80,10 +87,6 @@ int instructionSizeAgreement(Instruction * instr) {
 int instructionTypeAgreement(Instruction * instr) {
     Operand * op1 = &instr->op1;
     Operand * op2 = &instr->op2;
-
-    DEBUG("checking %s with type %d\n\top1 %d op2 %d",
-            instr->name, instr->type,
-            instr->op1.size, instr->op2.size);
 
     /* check that the operands' sizes and types agree
      * with the instruction's prototype */
@@ -159,27 +162,27 @@ inline int hasCustomOffset(Operand * op) {
 /* returns the converted 3-bit special offset */
 static char bitOffset(int offset) {
     switch (offset) {
-        case 0: return 0;
+        case 0: return R_OFF_0;
 
         case 1:
-        case 4: return 1;
+        case 4: return R_OFF_1_4;
 
         case 2:
-        case 8: return 2;
+        case 8: return R_OFF_2_8;
 
         case 3:
-        case 12: return 3;
+        case 12: return R_OFF_3_12;
 
         case -3:
-        case -12: return 4;
+        case -12: return R_NOFF_3_12;
 
         case -2:
-        case -8: return 5;
+        case -8: return R_NOFF_2_8;
 
         case -1:
-        case -4: return 6;
+        case -4: return R_NOFF_1_4;
 
-        default: return 7;
+        default: return R_OFF_CUSTOM;
     }
 }
 
@@ -201,9 +204,9 @@ int saveInstruction(Instruction * instr) {
     instruction |= (op1->type << TYPE1_OFFSET);
     instruction |= (op2->type << TYPE2_OFFSET);
 
-    DEBUG("Writing instr %s:0x%x with\n" \
-          "\top1 type %d, value %d, offset %d\n" \
-          "\top2 type %d, value %d, offset %d",
+    DEBUG("  Final: Writing instr %s:0x%x with\n" \
+          "\t  op1 type %d, value %d, offset %d\n" \
+          "\t  op2 type %d, value %d, offset %d",
            instr->name, instr->opcode,
            op1->type, op1->value, op1->offset,
            op2->type, op2->value, op2->offset);

@@ -46,6 +46,16 @@ typedef struct {
     int offset; /* how much of an offset, use dependent on OperandType */
 } Operand;
 
+/* Special offsets for indirect access */
+#define R_OFF_0      0
+#define R_OFF_1_4    1
+#define R_OFF_2_8    2
+#define R_OFF_3_12   3
+#define R_NOFF_3_12  4
+#define R_NOFF_2_8   5
+#define R_NOFF_1_4   6
+#define R_OFF_CUSTOM 7
+
 /** Instruction-relevant declarations **/
 /* Enumeration of instruction prototype variants */
 enum InstructionType {

@@ -1,0 +1,5 @@
+
+main:
+        mov     0xFFFFFFFF, r0
+        mov.s   [r0 + 2], r0a
+        hlt

@@ -57,7 +57,7 @@ GEN_L_REG r((1[0-5])|([0-9]))
 GEN_S_REG {GEN_L_REG}[abcd]
 EXTRA_REG re[0-6]
 KERN_REG  rk[0-7]
-PTR_REG   r[srf]
+PTR_REG   r[sr]
 REGISTER {GEN_L_REG}|{GEN_S_REG}|{EXTRA_REG}|{KERN_REG}|{FLAG_REG}|{PTR_REG}
  /* REGISTER r(((1[0-5])|([0-9]))[abcd]?|(e[0-6])|(k[0-7])|(flags|[srimpf])) */
 

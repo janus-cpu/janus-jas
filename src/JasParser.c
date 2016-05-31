@@ -49,10 +49,10 @@ void parse(FILE * in, FILE * out) {
     secondPass(); /* label resolution and type analysis */
 
     /* prevent writing to file if there were errors */
-    // TODO uncomment: if (!yyerr) {
+    if (!yyerr) {
         /* write instructions to outfile */
         writeInstructions(out);
-    //}
+    }
 }
 
 static void firstPass(void) {
@@ -197,6 +197,8 @@ static void readOperands(Instruction * instr, enum TokenType token) {
 
 static void readOperand(Operand * op, enum TokenType token) {
 
+    DEBUG("  Reading operand starting with %s", yytext);
+
     /* four possibilities: constant, register, indirect, or word */
     if (token == TOK_NUM) {
         int value = readNumber();
@@ -303,6 +305,8 @@ static void readInstruction(void) {
         /* FIXME: account for possible .ascii declarations etc? */
     }
 
+    DEBUG("Reading instruction `%s'", yytext);
+
     Instruction newInstr = {0};
     InstrRecord info;
 
@@ -315,8 +319,10 @@ static void readInstruction(void) {
     token = yylex(); /* two possibilities: length modifier or operand */
 
     if (token == TOK_DOT) {
+        DEBUG("  Forced length for `%s'.", newInstr.name);
         /* the next character must be a valid modifier */
         readLengthModifier(&newInstr);
+        token = yylex(); /* advance token */
     }
 
     /* next lexeme must be an operand */
@@ -340,6 +346,11 @@ static void readInstruction(void) {
     }
 
     /** semantic checks **/
+
+    DEBUG("  Semantic: checking `%s' with type %d\n\t  op1 %d op2 %d",
+            newInstr.name,     newInstr.type,
+            newInstr.op1.size, newInstr.op2.size);
+
     if (!instructionSizeAgreement(&newInstr)) {
         ERR_QUIT("Instruction operands' sizes are not in agreement.");
     }

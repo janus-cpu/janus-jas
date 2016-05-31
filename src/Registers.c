@@ -23,8 +23,7 @@ RegisterId getRegisterId(const char * name) {
 
     /* check for aliased registers */
     switch (*name) {
-        case 's': return 14;
-        case 'f': return 15;
+        case 's': return 15;
         case 'e': id = 16; name++; break;
         case 'k': id = 24; name++; break;
     }
