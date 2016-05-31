@@ -1,0 +1,4 @@
+
+___undrescore:
+	mov 1, r0
+	jmp ___undrescore

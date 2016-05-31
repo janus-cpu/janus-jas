@@ -45,6 +45,10 @@ ALPHA [A-Za-z]
 DIGIT [0-9]
 ALNUM {ALPHA}|{DIGIT}
 
+ID_START {ALPHA}|[_]
+ID_MIDDLE {ALNUM}|[_]
+IDENTIFIER {ID_START}{ID_MIDDLE}*
+
 DEC   ([1-9]{DIGIT}*)
 OCT   (0[1-7][0-7]*)
 HEX   (0[xX][0-9A-Fa-f]+)
@@ -61,7 +65,7 @@ REGISTER {GEN_L_REG}|{GEN_S_REG}|{EXTRA_REG}|{KERN_REG}|{FLAG_REG}|{PTR_REG}
 
 ;[^\n]*$                     {/* comment */}
 
-{ALPHA}{ALNUM}*:                { return TOK_LABEL; }
+{IDENTIFIER}:                   { return TOK_LABEL; }
 {GEN_L_REG}                     { return TOK_L_REG; }
 {GEN_S_REG}                     { return TOK_S_REG; }
 {EXTRA_REG}                     { return TOK_EXTRA_REG; }
@@ -70,7 +74,7 @@ REGISTER {GEN_L_REG}|{GEN_S_REG}|{EXTRA_REG}|{KERN_REG}|{FLAG_REG}|{PTR_REG}
  /* {REGISTER}                      { return TOK_REG; } */
 
 [dD][sSbBwW]                    { return TOK_DATA_SEG; }
-{ALPHA}{ALNUM}*                 { return TOK_WORD; }
+{IDENTIFIER}                    { return TOK_WORD; }
 [+-]?(0|{OCT}|{HEX}|{DEC})      { return TOK_NUM; }
 \"(\\.|[^\\"])*\"               { yytext++; /* extract inner stringth */
                                   yytext[strlen(yytext)-1] = '\0';
