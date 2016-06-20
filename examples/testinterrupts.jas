@@ -1,0 +1,65 @@
+    jmp begin
+
+; move printed string into r10, r10 not preserved.
+print:
+    mov.s [r10], r11a
+    out.s 0, r11a
+    inc   r10
+    cmp.s r11a, 0
+    jne   print
+    ret
+
+int_tbl:
+    nop
+    nop
+    nop
+    nop
+
+begin:
+    mov 0x800, rs     ; Set the rs to something that it won't affect the code.
+
+    mov int_tbl, r0
+    loi r0
+    mov int_invalid_instr, [r0]
+    mov int_invalid_mem,   [r0 + 4]
+    mov int_keypress,      [r0 + 8]
+    mov int_phonyint,      [r0+12]
+
+    rfl r0
+    or  0x10, r0
+    lfl r0            ; Set the kernel flag so we don't have any weird rk0 stuff
+
+    int 3
+    hlt
+
+str0: ds "Invalid instruction read!!!\0"
+
+int_invalid_instr:
+    mov str0, r10
+    call print
+    iret
+
+str1: ds "Invalid memory location at:\0"
+
+int_invalid_mem:
+    pop r1
+    mov str1, r10
+    call print
+    out 0, r1
+    iret
+
+str2: ds "Key pressed:\0"
+
+int_keypress:
+    pop.s r1a
+    mov   str2, r10
+    call  print
+    out.s 0, r1a
+    iret
+
+str3: ds "Phony interrupt received...\0"
+
+int_phonyint:
+    mov str3, r10
+    call print
+    iret
