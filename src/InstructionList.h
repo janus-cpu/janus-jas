@@ -38,6 +38,8 @@ const InstrRecord instrLookup[] = {
     {"CALL",   0x3c,   IT_U},
     {"RET",   0x3d,   IT_N},
     {"HLT",   0x3e,   IT_N},
+    {"INT",   0x3b,   IT_T},
+    {"IRET",  0x3f,   IT_N},
     {"LOM",   0x40,   IT_U},
     {"ROM",   0x41,   IT_P},
     {"LOI",   0x42,   IT_U},

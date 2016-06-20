@@ -1,0 +1,28 @@
+; ------------------------------------------------------------
+; | Tests the C, N, O, and Z flags                           | 
+; ------------------------------------------------------------
+
+mov  1000, rs
+call main
+hlt
+
+hellostr: ds "Hello, world!\0"
+
+print:
+    mov [rs + 4], r10
+
+loop:
+    mov [r10], r11
+    and 0xFF, r11
+    out 0, r11
+    inc r10
+    cmp r11, 0
+    jne loop
+
+    ret
+
+main:
+    push hellostr
+    call print
+    add  4, rs
+    ret

@@ -14,6 +14,7 @@
  * X - XCHG reg_ind, reg_ind
  * I - IN   const,   reg_ind
  * P - POP  reg_ind
+ * T - INT  const
  *
  */
 
@@ -65,7 +66,8 @@ enum InstructionType {
     IT_X, /* reg_ind, reg_ind */
     IT_I, /* const,   reg_ind */
     IT_P, /* reg_ind          */
-    IT_U  /* any              */
+    IT_U, /* any              */
+    IT_T  /* const            */
 };
 
 /* Instruction type declaration */

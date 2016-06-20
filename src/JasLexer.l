@@ -100,4 +100,3 @@ REGISTER {GEN_L_REG}|{GEN_S_REG}|{EXTRA_REG}|{KERN_REG}|{FLAG_REG}|{PTR_REG}
                                       lineno, *yytext); }
 
 %%
-

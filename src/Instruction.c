@@ -52,7 +52,8 @@ int instructionSizeAgreement(Instruction * instr) {
     /* don't need to do size agreement for no-op, one-op */
     if (instr->type == IT_N ||
         instr->type == IT_P ||
-        instr->type == IT_U) {
+        instr->type == IT_U ||
+        instr->type == IT_T) {
         return 1;
     }
 
@@ -120,6 +121,11 @@ int instructionTypeAgreement(Instruction * instr) {
         case IT_U:
             return op1->size != 0
                 && op2->size == 0;
+
+        case IT_T:
+            return op1->size != 0
+                && op2->size == 0
+                && op1->type == OT_CONST;
 
         default:
             return 0;
