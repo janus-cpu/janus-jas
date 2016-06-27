@@ -340,6 +340,24 @@ static void readOperand(Operand * op, enum TokenType token) {
                 } else {
                     ERR_QUIT("Expected number for offset.");
                 }
+            } else if (token == TOK_NUM) {
+              int offset;
+              // If we accidentally parse a number, but the number
+              // matches the regex [+-][0-9]+, then we have a correct
+              // offset actually.
+              if (yytext[0] == '+' || yytext[0] == '-') {
+                offset = readNumber();
+                op->offset = offset;
+                op->type = OT_REG_OFFSET;
+              } else {
+                ERR_QUIT("Expected '+' or '-' before number.");
+              }
+
+              /* next token must be a closing bracket */
+              token = yylex();
+              if (token != TOK_RBRACKET) {
+                  ERR_QUIT("Expected ']'.");
+              }
             } else {
                 ERR_QUIT("Expected '+', '-', or ']'.");
             }
