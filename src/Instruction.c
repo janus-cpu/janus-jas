@@ -58,15 +58,16 @@ int instructionSizeAgreement(Instruction * instr) {
 
     /* "widen/narrow" operands if needed */
     if (op1->size != op2->size) {
-        if (op1->type == OT_CONST) op1->size = OPSZ_LONG;
-        else if (op2->type == OT_CONST) op2->size = OPSZ_LONG;
-
         if (instr->size != 0) {
+            DEBUG("  Matching indirect op to size %d", instr->size);
             if (op1->type == OT_REG_ACCESS || op1->type == OT_REG_OFFSET)
                 op1->size = instr->size;
             if (op2->type == OT_REG_ACCESS || op2->type == OT_REG_OFFSET)
                 op2->size = instr->size;
         }
+
+        if (op1->type == OT_CONST) op1->size = op2->size;
+        else if (op2->type == OT_CONST) op2->size = op1->size;;
     }
 
     /* test that both sizes are the same */

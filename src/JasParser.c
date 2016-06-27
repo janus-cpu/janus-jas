@@ -16,6 +16,7 @@ static void firstPass(void);
 static void secondPass(void);
 
 /* reading input */
+static void readDataSegment(void);
 static void readInstruction(void);
 static void readLengthModifier(Instruction *);
 static void readOperands(Instruction *, enum TokenType);
@@ -76,52 +77,10 @@ static void firstPass(void) {
 
         } else if (token == TOK_DATA_SEG) {
 
-            /* what kind of segment is it? */
-            switch (yytext[strlen(yytext)-1]) {
-                case 's': {
-                    token = yylex();
-                    if (token == TOK_STRING_LITERAL) {
-                        char * lptr = yytext;
-                        char letter;
-                        char * temp;
-
-                        /* reallocate space for string */
-                        instrCap = instrPtr + strlen(yytext);
-                        temp = (char *) realloc(instrBuffer, instrCap);
-                        if (temp == NULL) {
-                            fprintf(stderr, "realloc() error.\n");
-                            exit(1);
-                        }
-                        instrBuffer = temp;
-
-                        while (*lptr != '\0') {
-                            letter = *lptr;
-
-                            if (letter == '\\') {
-                                switch (*++lptr) {
-                                    case '0': letter = '\0'; break;
-                                    case 'n': letter = '\n'; break;
-                                    case 't': letter = '\t'; break;
-                                }
-                            }
-
-                            /* save character into the buffer */
-                            instrBuffer[instrPtr++] = letter;
-                            lptr++;
-                        }
-                    } else {
-                        yyerror("Expected string.");
-                    }
-                    break;
-                }
-
-                default:
-                    // FIXME for bytes and words
-                    yyerror("Not implemented yet :c");
-            }
+            readDataSegment();
 
         } else {
-            yyerror("Line must start with label or instruction.");
+            yyerror("Line must start with label, instruction, or data segment.");
         }
     }
 }
@@ -131,6 +90,136 @@ static void secondPass(void) {
 }
 
 /* ----------------------- "Read" Functions --------------------------------- */
+
+static void readDataSegment(void) {
+    enum TokenType token;
+    char * temp; /* reallocation temp */
+
+    DEBUG("Data segment `%s'", yytext);
+
+    /* what kind of segment is it? */
+    switch (yytext[strlen(yytext)-1]) {
+        case 's': {
+            token = yylex();
+            if (token == TOK_STRING_LITERAL) {
+                char * lptr = yytext;
+                char letter;
+
+                DEBUG("  Reading string `%s'", yytext);
+
+                /* reallocate space for string */
+                instrCap = instrPtr + strlen(yytext);
+                temp = (char *) realloc(instrBuffer, instrCap);
+                if (temp == NULL) {
+                    fprintf(stderr, "realloc() error.\n");
+                    exit(1);
+                }
+                instrBuffer = temp;
+
+                while (*lptr != '\0') {
+                    letter = *lptr;
+
+                    /* handle escaped characters */
+                    if (letter == '\\') {
+                        switch (*(++lptr)) {
+                            case '0': letter = '\0'; break;
+                            case 'n': letter = '\n'; break;
+                            case 't': letter = '\t'; break;
+                        }
+                    }
+
+                    /* save character into the buffer */
+                    instrBuffer[instrPtr++] = letter;
+                    lptr++;
+                }
+            } else {
+                yyerror("Expected string.");
+            }
+            break;
+        }
+
+        case 'b': {
+            /* read in the list of numbers as 8-bit integers */
+            int byte;
+
+            while ((token = yylex()) != TOK_NL) {
+                /* 8-bit integer should come first */
+                if (token == TOK_NUM) {
+
+                    /* read number, check range */
+                    byte = readNumber();
+                    if (byte < SCHAR_MIN || SCHAR_MAX < byte)
+                        yyerror("Number too large to fit in 8-bits.");
+
+
+                    /* reallocate space for byte */
+                    instrCap = instrPtr + 1;
+                    temp = (char *) realloc(instrBuffer, instrCap);
+                    if (temp == NULL) {
+                        fprintf(stderr, "realloc() error.\n");
+                        exit(1);
+                    }
+                    instrBuffer = temp;
+
+                    /* write byte to buffer */
+                    instrBuffer[instrPtr++] = (signed char) byte;
+
+                } else {
+                    yyerror("Expected number.");
+                }
+
+                /* comma or newline should follow */
+                token = yylex();
+                if (token != TOK_COMMA && token != TOK_NL)
+                    yyerror("Expected `,'.");
+
+                if (token == TOK_NL) return; /* we're done, eol */
+            }
+
+        }
+
+        case 'w': {
+            /* read in the list of numbers as 32-bit integers */
+            int word;
+
+            while ((token = yylex()) != TOK_NL) {
+                /* 32-bit integer should come first */
+                if (token == TOK_NUM) {
+
+                    /* read the word in */
+                    word = readNumber();
+
+                    /* reallocate space for word */
+                    instrCap = instrPtr + sizeof(word);
+                    temp = (char *) realloc(instrBuffer, instrCap);
+                    if (temp == NULL) {
+                        fprintf(stderr, "realloc() error.\n");
+                        exit(1);
+                    }
+                    instrBuffer = temp;
+
+                    /* write word to buffer */
+                    memcpy(instrBuffer + instrPtr, &word, sizeof(word));
+                    instrPtr += sizeof(word);
+
+                } else {
+                    yyerror("Expected number.");
+                }
+
+                /* comma or newline should follow */
+                token = yylex();
+                if (token != TOK_COMMA && token != TOK_NL)
+                    yyerror("Expected `,'.");
+
+                if (token == TOK_NL) return; /* we're done, eol */
+            }
+        }
+
+        default:
+            yyerror("Non-existent data segment type.");
+    }
+
+}
 
 static void readLengthModifier(Instruction * instr) {
     yylex(); /* advance token */
@@ -146,6 +235,9 @@ static void readLengthModifier(Instruction * instr) {
 
 static int readNumber(void) {
     long value;
+
+    DEBUG("  Reading number %s", yytext);
+
     /* read in the number with strtol */
     errno = 0;
     value = strtol(yytext, NULL, ANY_BASE);
