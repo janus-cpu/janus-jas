@@ -13,16 +13,13 @@ OBJ_FILES = JasParser.o JasLexer.o Instruction.o Registers.o Labels.o
 
 MAKE = make --no-print-directory
 
-all: cfg jas
+all: jas
 
 jas: sources
 	@echo "Final pass .."
 	$(CC) -o jas $(addprefix ./src/, $(OBJ_FILES)) \
 				 $(addprefix ./src/, $(SRC_FILES))
 	@echo "Done."
-
-cfg:
-	@$(MAKE) -C config/ all
 
 sources:
 	@$(MAKE) -C src/ objects
