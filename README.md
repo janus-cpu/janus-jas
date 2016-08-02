@@ -12,11 +12,15 @@ The Janus Assembler (`jas`) uses Flex and C to generate machine code for the
  3. Name Resolution and Linking\* - resolve undefined labels, etc.
 
 ## Development files
-If you want to check out `jas` for yourself, clone the repo:
+If you want to check out `jas` for yourself, you'll need the following installed:
+ + `make`
+ + `flex`
+ + `gcc`
+
+Once you're sure that you do, clone the repo:
 ```
 $ git clone https://github.com/pencels/jas.git
 ```
-
 and `make` the `jas` executable. Of course, you'd also need to have
 [`vesta`](https://github.com/janus-cpu/janus-vesta) as well.
 
