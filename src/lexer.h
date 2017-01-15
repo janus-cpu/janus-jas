@@ -13,6 +13,8 @@ typedef enum TokenType {
     TOK_PTR_REG,
 
     TOK_ID,       /* identifier, numbers */
+    TOK_LABEL,
+    TOK_INSTR,
     TOK_DATA_SEG,
     TOK_NUM,
     TOK_CHR_LIT,
@@ -25,7 +27,6 @@ typedef enum TokenType {
     TOK_LBRACKET,   /* delimiters */
     TOK_RBRACKET,
     TOK_COMMA,
-    TOK_COLON,      // TODO
     TOK_EOF = EOF,
 
     TOK_UNK
