@@ -5,16 +5,22 @@
 #include <ctype.h>
 
 #include "Instruction.h"
+#include "JasParser.h"
+#include "Registers.h"
 
-#define ERROR_FMT "(%d:%d) -> \033[1;31merror\033[0m: %s\n"
+#define ERROR_FMT "\033[1m%s (%d:%d) \033[1;31merror:\033[0m %s\n"
 
+char* lexfilename;
 FILE* lexfile;
 int curr_line = 1, curr_col = 0, last_col; // TODO last_col necessary?for spit()
 int lo_col = 0; // The column at the beginning of a token.
+char linebuf[BUFSIZ]; // TODO maybe remove? need to figure out where to save
+                      // line info for error reporting
 
 static int curr_char;
 char lexstr[BUFSIZ];
 long lexint;
+int j_err = 0;
 
 /*
  * Get a line from a FILE* stream. Does not include \n, but is null terminated.
@@ -25,6 +31,7 @@ static char* fgetline(char buf[], FILE* stream) {
     while ((c = fgetc(stream)) != '\n' && c != EOF)
         buf[i++] = c;
     buf[i] = '\0';
+    return buf;
 }
 
 /*
@@ -52,10 +59,10 @@ static void fprint_caret(FILE* stream, int lo, int hi) {
 /*
  * Error-reporting function. Provides message and relevant code snippet to user.
  */
-static void lex_err(const char* msg, int line, int lo, int hi) {
+void jas_err(const char* msg, int line, int lo, int hi) {
     char linestr[BUFSIZ];
     long int pos;
-    fprintf(stderr, ERROR_FMT, line, hi, msg);
+    fprintf(stderr, ERROR_FMT, lexfilename, line, hi, msg);
 
     // Save position and seek back to the front of the line.
     // We need to save the absolute position, since getting the whole line later
@@ -65,11 +72,24 @@ static void lex_err(const char* msg, int line, int lo, int hi) {
 
     // Print out whole line with caret.
     fgetline(linestr, lexfile);
-    fprintf(stderr, "\t%s\n", linestr);
+    int i = 0;
+    fputc('\t', stderr);
+    while (i + 1 < lo) {
+        fputc(linestr[i++], stderr);
+    }
+    fprintf(stderr, "\033[1;33m");
+    while (i + 1 < hi) {
+        fputc(linestr[i++], stderr);
+    }
+    fprintf(stderr, "\033[0m");
+    fprintf(stderr, "%s\n", linestr + i);
     fprint_caret(stderr, lo, hi);
 
     // Move back.
     fseek(lexfile, pos, SEEK_SET);
+
+    // Error happened.
+    j_err = 1;
 }
 
 /*
@@ -128,6 +148,25 @@ static inline int is_oct(int c) {
 
 static inline int is_bin(int c) {
     return c == '0' || c == '1';
+}
+
+static inline int is_dtv(const char* s) {
+    // Start with d, end with length specifier.
+    if (*s == 'd') {
+        s++;
+        switch (*s) {
+            case 'b':
+            case 'B':
+            case 'h':
+            case 'H':
+            case 'w':
+            case 'W':
+            case 's':
+            case 'S':
+                return s[1] == '\0';
+        }
+    }
+    return 0;
 }
 
 static inline char escape(char c) {
@@ -189,6 +228,12 @@ TokenType next_tok(void) {
     while (curr_char != EOF) {
         lo_col = curr_col; // Save first col of the token.
 
+        // Newline.
+        if (curr_char == '\n') {
+            eat();
+            return TOK_NL;
+        }
+
         // Skip whitespace.
         if (isspace(curr_char)) {
             eat();
@@ -204,6 +249,7 @@ TokenType next_tok(void) {
         }
 
         // id ::= [A-Za-z$_][A-Za-z_$0-9]*
+        // reg ::= r([0-9]|1[0-5])[abcd] | rs | re[0-6] | rk[0-7]
         // label ::= <nonopcode id>:
         if (is_idstart(curr_char)) {
             int i;
@@ -217,7 +263,43 @@ TokenType next_tok(void) {
                 }
             }
             lexstr[++i] = '\0';
-            eat(); // Advance to next char.
+            eat(); // Advance to next char after the identifier.
+
+            // Register?
+            if (lexstr[0] == 'r') {
+                const char* reg = lexstr;
+                int j = 1;
+
+                // rs and rr
+                if ((reg[j] == 's' || reg[j] == 'r') && reg[j + 1] == '\0')
+                    return TOK_GL_REG;
+
+                // Gen. purpose.
+                if (isdigit(reg[j])) {
+                    // Advance to the end of the string.
+                    j++;
+                    if (isdigit(reg[j])) j++;
+
+                    // If the register takes up the whole string, classify:
+                    if (reg[j + 1] == '\0') {
+                        if (isShortRegister(reg[j])) return TOK_GS_REG;
+                        else return TOK_GL_REG;
+                    }
+                }
+
+                // Extra
+                if (curr_char == 'e')
+                    return TOK_E_REG;
+
+                // Kernel
+                if (curr_char == 'k')
+                    return TOK_K_REG;
+            }
+
+            // Directive?
+            if (is_dtv(lexstr)) {
+                return TOK_DATA_SEG;
+            }
 
             // Instruction?
             if (isInstruction(lexstr))
@@ -246,7 +328,7 @@ TokenType next_tok(void) {
 
             // Error: for situations like '\'
             if (curr_char != '\'') {
-                lex_err("Character literal missing closing quote.",
+                jas_err("Character literal missing closing quote.",
                          curr_line, lo_col, curr_col);
                 return TOK_UNK;
             }
@@ -264,8 +346,8 @@ TokenType next_tok(void) {
             for (i = 0; curr_char != '"'; i++) {
                 // Check that we don't close reach EOF before the close ".
                 if (curr_char == EOF) {
-                    lex_err("EOF while parsing string literal.",
-                            curr_line, lo_col, curr_col);
+                    jas_err("EOF while parsing string literal.",
+                            curr_line, curr_col, curr_col);
                     return TOK_UNK;
                 }
 
@@ -318,23 +400,30 @@ TokenType next_tok(void) {
             case ']': eat(); return TOK_RBRACKET;
         }
 
-        lex_err("Unknown character encountered.", curr_line, lo_col, lo_col);
+        jas_err("Unknown character encountered.", curr_line, lo_col, lo_col);
         eat(); // Advance to next char.
     }
 
     return TOK_EOF;
 }
 
+/*
 // TODO remove
 #include <stdbool.h>
 bool debug_on = false;
 
 int main(int argc, char* argv[]) {
-    FILE* f = fopen(argv[1], "r");
+    lexfilename = argv[1];
+    FILE* f = fopen(lexfilename, "r");
     if (f) {
         TokenType tty;
         lexfile = f;
         while ((tty = next_tok()) != TOK_EOF) {
+            if (isRegister(tty)) {
+                fprintf(stderr, "REG `%s`\n", lexstr);
+                continue;
+            }
+
             switch (tty) {
                 case TOK_INSTR:
                     fprintf(stderr, "INSTR `%s`\n", lexstr);
@@ -350,3 +439,4 @@ int main(int argc, char* argv[]) {
         fclose(f);
     }
 }
+*/

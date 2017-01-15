@@ -7,7 +7,7 @@
 #define REG_SIZE 4
 #define REG_BASE 10
 
-static int isShortRegister(char endchar) {
+int isShortRegister(char endchar) {
     return (endchar == 'a' ||
             endchar == 'b' ||
             endchar == 'c' ||

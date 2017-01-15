@@ -1,3 +1,5 @@
+#include "JasParser.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -5,8 +7,8 @@
 #include <ctype.h>
 #include <limits.h>
 
+#include "lexer.h"
 #include "debug.h"
-#include "JasParser.h"
 #include "Instruction.h"
 #include "Labels.h"
 #include "Registers.h"
@@ -19,14 +21,13 @@ static void secondPass(void);
 static void readDataSegment(void);
 static void readInstruction(void);
 static void readLengthModifier(Instruction *);
-static void readOperands(Instruction *, enum TokenType);
-static void readOperand(Operand *, enum TokenType);
+static void readOperands(Instruction *, TokenType);
+static void readOperand(Operand *, TokenType);
 static int readNumber(void);
-static void readRegister(Operand *, enum TokenType);
+static void readRegister(Operand *, TokenType);
 
 /* utility functions */
 static OperandSize opSizeOfNum(int);
-static int isRegister(enum TokenType);
 static int isRegType(OperandType);
 
 /* final output stream */
@@ -36,7 +37,7 @@ static FILE * ostream;
 
 /** entry function to begin parsing **/
 void parse(FILE * in, FILE * out) {
-    yyin = in;
+    lexfile = in;
     ostream = out;
 
     /* grab the first line */
@@ -50,28 +51,26 @@ void parse(FILE * in, FILE * out) {
     secondPass(); /* label resolution and type analysis */
 
     /* prevent writing to file if there were errors */
-    if (!yyerr) {
+    if (!j_err) {
         /* write instructions to outfile */
         writeInstructions(out);
     }
 }
 
 static void firstPass(void) {
-    enum TokenType token;
+    TokenType token;
 
+    // TODO Integrate lexer with parser
     /* read line-by-line until end-of-input */
-    while ((token = yylex()) != EOF) {
-
-        /* skip empty lines */
-        if (token == TOK_NL) continue;
+    while ((token = next_tok()) != TOK_EOF) {
 
         /* non-empty line: */
         /* two possibilities: label or instruction */
         if (token == TOK_LABEL) {
 
-            saveLabel(yytext, instrPtr);
+            saveLabel(lexstr, instrPtr);
 
-        } else if (token == TOK_WORD) {
+        } else if (token == TOK_INSTR) {
 
             readInstruction();
 
@@ -80,7 +79,8 @@ static void firstPass(void) {
             readDataSegment();
 
         } else {
-            yyerror("Line must start with label, instruction, or data segment.");
+            jas_err("Line must start with label, instruction, or data segment.",
+                    curr_line, lo_col, curr_col);
         }
     }
 }
@@ -92,23 +92,23 @@ static void secondPass(void) {
 /* ----------------------- "Read" Functions --------------------------------- */
 
 static void readDataSegment(void) {
-    enum TokenType token;
+    TokenType token;
     char * temp; /* reallocation temp */
 
-    DEBUG("Data segment `%s'", yytext);
+    DEBUG("Data segment `%s'", lexstr);
 
     /* what kind of segment is it? */
-    switch (yytext[strlen(yytext)-1]) {
+    switch (lexstr[strlen(lexstr)-1]) {
         case 's': {
-            token = yylex();
-            if (token == TOK_STRING_LITERAL) {
-                char * lptr = yytext;
+            token = next_tok();
+            if (token == TOK_STR_LIT) {
+                char * lptr = lexstr;
                 char letter;
 
-                DEBUG("  Reading string `%s'", yytext);
+                DEBUG("  Reading string `%s'", lexstr);
 
                 /* reallocate space for string */
-                instrCap = instrPtr + strlen(yytext);
+                instrCap = instrPtr + strlen(lexstr);
                 temp = (char *) realloc(instrBuffer, instrCap);
                 if (temp == NULL) {
                     fprintf(stderr, "realloc() error.\n");
@@ -133,23 +133,24 @@ static void readDataSegment(void) {
                     lptr++;
                 }
             } else {
-                yyerror("Expected string.");
+                jas_err("Expected string.", curr_line, lo_col, curr_col);
             }
             break;
         }
 
         case 'b': {
-            /* read in the list of numbers as 8-bit integers */
+            /* read in list of numbers/char literals as 8-bit integers */
             int byte;
 
-            while ((token = yylex()) != TOK_NL) {
+            while ((token = next_tok()) != TOK_NL) {
                 /* 8-bit integer should come first */
                 if (token == TOK_NUM) {
 
                     /* read number, check range */
                     byte = readNumber();
                     if (byte < SCHAR_MIN || SCHAR_MAX < byte)
-                        yyerror("Number too large to fit in 8-bits.");
+                        jas_err("Number too large to fit in 8-bits.",
+                                  curr_line, lo_col, curr_col);
 
 
                     /* reallocate space for byte */
@@ -165,13 +166,13 @@ static void readDataSegment(void) {
                     instrBuffer[instrPtr++] = (signed char) byte;
 
                 } else {
-                    yyerror("Expected number.");
+                    jas_err("Expected number.", curr_line, lo_col, curr_col);
                 }
 
                 /* comma or newline should follow */
-                token = yylex();
+                token = next_tok();
                 if (token != TOK_COMMA && token != TOK_NL)
-                    yyerror("Expected `,'.");
+                    jas_err("Expected `,'.", curr_line, lo_col, curr_col);
 
                 if (token == TOK_NL) return; /* we're done, eol */
             }
@@ -182,7 +183,7 @@ static void readDataSegment(void) {
             /* read in the list of numbers as 32-bit integers */
             int word;
 
-            while ((token = yylex()) != TOK_NL) {
+            while ((token = next_tok()) != TOK_NL) {
                 /* 32-bit integer should come first */
                 if (token == TOK_NUM) {
 
@@ -203,30 +204,31 @@ static void readDataSegment(void) {
                     instrPtr += sizeof(word);
 
                 } else {
-                    yyerror("Expected number.");
+                    jas_err("Expected number.", curr_line, lo_col, curr_col);
                 }
 
                 /* comma or newline should follow */
-                token = yylex();
+                token = next_tok();
                 if (token != TOK_COMMA && token != TOK_NL)
-                    yyerror("Expected `,'.");
+                    jas_err("Expected `,'.", curr_line, lo_col, curr_col);
 
                 if (token == TOK_NL) return; /* we're done, eol */
             }
         }
 
         default:
-            yyerror("Non-existent data segment type.");
+            jas_err("Non-existent data segment type.", curr_line, lo_col,
+                      curr_col);
     }
 
 }
 
 static void readLengthModifier(Instruction * instr) {
-    yylex(); /* advance token */
+    next_tok(); /* advance token */
 
-    if (*yytext == 's') {
+    if (*lexstr == 's') {
         instr->size = OPSZ_SHORT;
-    } else if (*yytext == 'l') {
+    } else if (*lexstr == 'l') {
         instr->size = OPSZ_LONG;
     } else {
         ERR_QUIT("Invalid length modifier, expecting 's' or 'l'");
@@ -236,11 +238,11 @@ static void readLengthModifier(Instruction * instr) {
 static int readNumber(void) {
     long value;
 
-    DEBUG("  Reading number %s", yytext);
+    DEBUG("  Reading number %s", lexstr);
 
     /* read in the number with strtol */
     errno = 0;
-    value = strtol(yytext, NULL, ANY_BASE);
+    value = strtol(lexstr, NULL, ANY_BASE);
     if (errno != 0) {
         perror(NULL); /* FIXME: make a better error message */
         exit(1);
@@ -248,25 +250,25 @@ static int readNumber(void) {
 
     /* check for int size (we can support max of 32 bits) */
     if (value < INT_MIN || UINT_MAX < value) {
-        yyerror("Integer larger than 32 bits.");
+        jas_err("Integer larger than 32 bits.", curr_line, lo_col, curr_col);
     }
 
     return (int) value;
 }
 
-static void readRegister(Operand * op, enum TokenType token) {
+static void readRegister(Operand * op, TokenType token) {
     /* check register size */
-    if (token == TOK_S_REG) {
+    if (token == TOK_GS_REG) {
         op->size = OPSZ_SHORT;
     } else { /* the rest can have size long */
         op->size = OPSZ_LONG;
     }
 
     op->type = OT_REG;
-    op->value = getRegisterId(yytext);
+    op->value = getRegisterId(lexstr);
 }
 
-static void readOperands(Instruction * instr, enum TokenType token) {
+static void readOperands(Instruction * instr, TokenType token) {
 
     if (token != TOK_NL) {
         readOperand(&instr->op1, token);
@@ -274,9 +276,9 @@ static void readOperands(Instruction * instr, enum TokenType token) {
         return; /* one-op */
     }
 
-    token = yylex();
+    token = next_tok();
     if (token == TOK_COMMA) {
-        readOperand(&instr->op2, yylex());
+        readOperand(&instr->op2, next_tok());
     } else if (token == TOK_NL) {
         /* no second operand */
         instr->op2.size = 0;
@@ -287,9 +289,9 @@ static void readOperands(Instruction * instr, enum TokenType token) {
 
 }
 
-static void readOperand(Operand * op, enum TokenType token) {
+static void readOperand(Operand * op, TokenType token) {
 
-    DEBUG("  Reading operand starting with %s", yytext);
+    DEBUG("  Reading operand starting with %s", lexstr);
 
     /* four possibilities: constant, register, indirect, or word */
     if (token == TOK_NUM) {
@@ -307,14 +309,14 @@ static void readOperand(Operand * op, enum TokenType token) {
 
     } else if (token == TOK_LBRACKET) {
 
-        token = yylex();
+        token = next_tok();
 
         /* two possibilities, register or number following */
         if (isRegister(token)) {
 
             readRegister(op, token);
 
-            token = yylex();
+            token = next_tok();
             /* two possibilities: closing bracket or a +/- sign */
             if (token == TOK_RBRACKET) {
                 /* this is a simple reg access, correct the type and
@@ -327,13 +329,13 @@ static void readOperand(Operand * op, enum TokenType token) {
                 int offset;
 
                 /* next token must be a number */
-                if (yylex() == TOK_NUM) {
+                if (next_tok() == TOK_NUM) {
                     offset = readNumber();
                     op->offset = sign * offset;
                     op->type = OT_REG_OFFSET;
 
                     /* next token must be a closing bracket */
-                    token = yylex();
+                    token = next_tok();
                     if (token != TOK_RBRACKET) {
                         ERR_QUIT("Expected ']'.");
                     }
@@ -345,7 +347,7 @@ static void readOperand(Operand * op, enum TokenType token) {
               // If we accidentally parse a number, but the number
               // matches the regex [+-][0-9]+, then we have a correct
               // offset actually.
-              if (yytext[0] == '+' || yytext[0] == '-') {
+              if (lexstr[0] == '+' || lexstr[0] == '-') {
                 offset = readNumber();
                 op->offset = offset;
                 op->type = OT_REG_OFFSET;
@@ -354,7 +356,7 @@ static void readOperand(Operand * op, enum TokenType token) {
               }
 
               /* next token must be a closing bracket */
-              token = yylex();
+              token = next_tok();
               if (token != TOK_RBRACKET) {
                   ERR_QUIT("Expected ']'.");
               }
@@ -372,7 +374,7 @@ static void readOperand(Operand * op, enum TokenType token) {
             op->type = OT_REG_OFFSET;
             op->offset = offset;
 
-            token = yylex();
+            token = next_tok();
             /* next token should be a plus sign */
             if (token == TOK_PLUS) {
                 /* next token should be a register */
@@ -383,18 +385,18 @@ static void readOperand(Operand * op, enum TokenType token) {
         } else {
             ERR_QUIT("Expected register or number following '['.");
         }
-    } else if (token == TOK_WORD) {
+    } else if (token == TOK_ID) {
         /* assume it's a label, try to do label resolution
          * if we can't, it's fine, we'll get it on the second pass! */
         op->type = OT_CONST;
         op->size = OPSZ_LONG;
-        op->value = getLabelLocation(yytext);
+        op->value = getLabelLocation(lexstr);
 
         /* save undefined labels, increment to next avail space */
         if (op->value == -1) {
-            saveUndefLabel(yytext, instrPtr + sizeof(int));
+            saveUndefLabel(lexstr, instrPtr + sizeof(int));
         }
-    } else if (strlen(yytext) == 0) {
+    } else if (strlen(lexstr) == 0) {
         /* no operands */
     } else {
         ERR_QUIT("Unrecognizable operand.");
@@ -407,32 +409,26 @@ static void readOperand(Operand * op, enum TokenType token) {
 #define OP_TEST 0x07
 
 static void readInstruction(void) {
-    enum TokenType token;
+    TokenType token;
 
-    /* if word, but not instruction */
-    if (!isInstruction(yytext)) {
-        ERR_QUIT("Line does not contain a valid instruction.");
-        /* FIXME: account for possible .ascii declarations etc? */
-    }
-
-    DEBUG("Reading instruction `%s'", yytext);
+    DEBUG("Reading instruction `%s'", lexstr);
 
     Instruction newInstr = {0};
     InstrRecord info;
 
     /* get opcode for the instruction */
-    getInstrInfo(yytext, &info);
+    getInstrInfo(lexstr, &info);
     newInstr.name = info.name;
     newInstr.type = info.type;
     newInstr.opcode = info.opcode;
 
-    token = yylex(); /* two possibilities: length modifier or operand */
+    token = next_tok(); /* two possibilities: length modifier or operand */
 
     if (token == TOK_DOT) {
         DEBUG("  Forced length for `%s'.", newInstr.name);
         /* the next character must be a valid modifier */
         readLengthModifier(&newInstr);
-        token = yylex(); /* advance token */
+        token = next_tok(); /* advance token */
     }
 
     /* next lexeme must be an operand */
@@ -485,10 +481,9 @@ static OperandSize opSizeOfNum(int value) {
         return OPSZ_LONG;  /* fits into 32 bits */
 }
 
-static int isRegister(enum TokenType token) {
-    return (token == TOK_L_REG || token == TOK_S_REG ||
-            token == TOK_EXTRA_REG || token == TOK_KERN_REG ||
-            token == TOK_PTR_REG);
+int isRegister(TokenType token) {
+    return (token == TOK_GL_REG || token == TOK_GS_REG ||
+            token == TOK_E_REG || token == TOK_K_REG);
 }
 
 static int isRegType(OperandType type) {
