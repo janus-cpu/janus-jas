@@ -9,7 +9,7 @@ CC_WFLAGS = -c -g -O0 --std=c99
 CC = gcc
 
 SRC_FILES = jas.c
-OBJ_FILES = JasParser.o lexer.o Instruction.o Registers.o Labels.o
+OBJ_FILES = parser.o lexer.o Instruction.o Registers.o Labels.o
 
 MAKE = make --no-print-directory
 

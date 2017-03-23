@@ -38,16 +38,16 @@ void resolveLabels(void) {
 void saveLabel(const char * label, int location) {
     LabelRec newRec;
     LabelRec * temp;
-    char * labelcpy = (char *) malloc(strlen(label));
+    int llen = strlen(label) + 1; // For alloc'ing and copying -- includes nul.
+    char * labelcpy = (char *) malloc(llen);
 
     /* allocate more space for table */
     temp = (LabelRec *) realloc(symTab, sizeof(LabelRec) * (numlabels + 1));
     if (temp == NULL) { fprintf(stderr, "realloc() error.\n"); return; }
     symTab = temp;
 
-    /* load new label, remove `:' , insert into table */
-    newRec.label = strncpy(labelcpy, label, strlen(label));
-    newRec.label[strlen(label) - 1] = '\0'; /* null terminate */
+    /* load new label insert into table */
+    newRec.label = strncpy(labelcpy, label, llen);
     newRec.location = location;
     symTab[numlabels++] = newRec;
 

@@ -1,7 +1,7 @@
 # jas
 
 ## About
-The Janus Assembler (`jas`) uses Flex and C to generate machine code for the
+The Janus Assembler (`jas`) generates machine code for the
 [`vesta`](https://github.com/janus-cpu/janus-vesta) virtual machine.
 
 ## How does it?

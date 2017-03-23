@@ -13,8 +13,8 @@ char * instrBuffer;
 long instrPtr;
 long instrCap;
 
-int getInstrInfo(const char * name, InstrRecord * outRecord) {
-    const InstrRecord * record = instrLookup;
+int getInstrInfo(const char * name, struct InstrRecord * outRecord) {
+    const struct InstrRecord * record = instrLookup;
     char upper[BUFSIZ];
     int i = 0;
 
@@ -44,9 +44,9 @@ int isInstruction(const char * name) {
     return getInstrInfo(name, NULL);
 }
 
-int instructionSizeAgreement(Instruction * instr) {
-    Operand * op1 = &instr->op1;
-    Operand * op2 = &instr->op2;
+int instructionSizeAgreement(struct Instruction * instr) {
+    struct Operand * op1 = &instr->op1;
+    struct Operand * op2 = &instr->op2;
     int result;
 
     /* don't need to do size agreement for no-op, one-op */
@@ -81,9 +81,9 @@ int instructionSizeAgreement(Instruction * instr) {
     return result;
 }
 
-int instructionTypeAgreement(Instruction * instr) {
-    Operand * op1 = &instr->op1;
-    Operand * op2 = &instr->op2;
+int instructionTypeAgreement(struct Instruction * instr) {
+    struct Operand * op1 = &instr->op1;
+    struct Operand * op2 = &instr->op2;
 
     /* check that the operands' sizes and types agree
      * with the instruction's prototype */
@@ -133,7 +133,7 @@ int instructionTypeAgreement(Instruction * instr) {
     }
 }
 
-inline int hasCustomOffset(Operand * op) {
+inline int hasCustomOffset(struct Operand * op) {
     OperandSize size = op->size;
     int offset = op->offset;
 
@@ -182,7 +182,7 @@ static char bitOffset(int offset) {
     }
 }
 
-int saveInstruction(Instruction * instr) {
+int saveInstruction(struct Instruction * instr) {
     int instruction = instr->opcode;
     int op1_const = 0;
     int op2_const = 0;
@@ -194,8 +194,8 @@ int saveInstruction(Instruction * instr) {
         instruction |= SIZE_BIT;
 
     /* lay in op types */
-    Operand * op1 = &instr->op1;
-    Operand * op2 = &instr->op2;
+    struct Operand * op1 = &instr->op1;
+    struct Operand * op2 = &instr->op2;
 
     instruction |= (op1->type << TYPE1_OFFSET);
     instruction |= (op2->type << TYPE2_OFFSET);
