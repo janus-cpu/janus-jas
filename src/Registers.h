@@ -3,6 +3,7 @@
 
 typedef unsigned char RegisterId;
 
+int isShortRegister(char);
 RegisterId getRegisterId(const char *);
 
 #endif

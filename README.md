@@ -1,7 +1,7 @@
 # jas
 
 ## About
-The Janus Assembler (`jas`) uses Flex and C to generate machine code for the
+The Janus Assembler (`jas`) generates machine code for the
 [`vesta`](https://github.com/janus-cpu/janus-vesta) virtual machine.
 
 ## How does it?
@@ -14,12 +14,11 @@ The Janus Assembler (`jas`) uses Flex and C to generate machine code for the
 ## Development files
 If you want to check out `jas` for yourself, you'll need the following installed:
  + `make`
- + `flex`
  + `gcc`
 
 Once you're sure that you do, clone the repo:
 ```
-$ git clone https://github.com/pencels/jas.git
+$ git clone https://github.com/janus-cpu/janus-jas.git
 ```
 and `make` the `jas` executable. Of course, you'd also need to have
 [`vesta`](https://github.com/janus-cpu/janus-vesta) as well.
