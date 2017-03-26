@@ -2,6 +2,7 @@
 ;   Hello, world! printed to screen with jas                               ;
 ; ------------------------------------------------------------------------ ;
 
+        mov 0xfffff700, rs
 	jmp code
 
 str:	ds "Hello, world!\0"
@@ -9,7 +10,7 @@ code:	mov str, r0
 
 loop:	out 0, [r0]
 	inc r0
-	cmp 0, [r0]
+	cmp.s 0, [r0]
 	jne loop
 
 pool:	hlt
