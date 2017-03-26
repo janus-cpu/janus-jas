@@ -10,10 +10,10 @@ CC = gcc
 
 LEX = flex
 
-H_FILES = JasParser.h jas.h JasStrings.h \
-		  Instruction.h Registers.h Labels.h InstructionList.h
+H_FILES = parser.h jas.h JasStrings.h \
+		  Instruction.h Registers.h Labels.h InstructionList.h lexer.h
 SRC_FILES = jas.c
-OBJ_FILES = JasParser.o JasLexer.o Instruction.o Registers.o Labels.o
+OBJ_FILES = parser.o lexer.o Instruction.o Registers.o Labels.o
 
 MAKE = make --no-print-directory
 
@@ -24,15 +24,8 @@ objects: $(OBJ_FILES) $(H_FILES)
 	$(CC) $(CC_FLAGS) ./$<
 	@echo ""
 
-.l.o:
-	@echo "Reading flex rules .."
-	$(LEX) -o $(basename $<).c $<
-	$(CC) $(CC_WFLAGS) $(basename $<).c
-	rm -f $(basename $<).c
-	@echo ""
-
 clean:
-	rm -f *.o JasLexer.c
+	rm -f *.o # JasLexer.c
 
 new:
 	@$(MAKE) clean > /dev/null

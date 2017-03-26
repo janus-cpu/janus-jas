@@ -1,0 +1,34 @@
+
+;------------------------;
+; testing out ds, db, dw ;
+;------------------------;
+
+        jmp     main
+
+string: ds "i am a string!\0"
+
+bytes:  db 0x10, 1, 2, 3, 4
+end_bytes:
+
+words:  dw 0xFFFFFFFF, 999, 0453
+
+main:
+        ; do stuff with the string
+        ;mov string, r0
+loop:
+        ;out 0, [r0]
+        ;inc r0
+        ;cmp 0, [r0]
+        ;jne loop
+
+        ; do stuff with the bytes
+        mov bytes, r0
+        mov end_bytes, r3
+        sub r0, r3
+
+        ; move single byte!
+        mov.s [r0 + 1], r0a
+        out 0, r0a
+
+
+pool:   hlt

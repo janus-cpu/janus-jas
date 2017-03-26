@@ -2,15 +2,19 @@
 ;   Hello, world! printed to screen with jas                               ;
 ; ------------------------------------------------------------------------ ;
 
-        mov 0xfffff700, rs
-	jmp code
+        jmp code
 
-str:	ds "Hello, world!\0"
-code:	mov str, r0
+str:    ds "Hello, world!!!\0"
+code:   mo str, r0
 
-loop:	out 0, [r0]
-	inc r0
-	cmp.s 0, [r0]
-	jne loop
+loop:   mov [r0], r1
+        and 0xFF, r1
+        inc r0
 
-pool:	hlt
+        ; printe out things
+        out 0, r1
+
+        cmp 0, r1
+        jne loop
+
+pool:   hlt

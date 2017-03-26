@@ -34,18 +34,18 @@ enum OperandType {
 
 /* Indeterminant(instruction-only), long, or short */
 enum OperandSize {
-    OPSZ_INDET,     /* only for Instructions that don't force size */
-    OPSZ_LONG,      /* 32-bit long register argument               */
-    OPSZ_SHORT      /* 8-bit  short register argument              */
+    OPSZ_INDET = 0,     /* only for Instructions that don't force size */
+    OPSZ_LONG  = 4,     /* 32-bit long register argument               */
+    OPSZ_SHORT = 1      /* 8-bit  short register argument              */
 };
 
 /* Operand type declaration */
-typedef struct {
-    OperandType type;
-    OperandSize size;
+struct Operand {
+    enum OperandType type;
+    enum OperandSize size;
     int value;  /* the value of the register                           */
     int offset; /* how much of an offset, use dependent on OperandType */
-} Operand;
+};
 
 /* Special offsets for indirect access */
 #define R_OFF_0      0
@@ -71,21 +71,21 @@ enum InstructionType {
 };
 
 /* Instruction type declaration */
-typedef struct {
+struct Instruction {
     const char * name;
-    InstructionType type;
+    enum InstructionType type;
     OperandSize size;     /* ATTN!: only non-zero if size forced with .s/.l  */
     short opcode;         /* short since an opcode is <= 9 bits in length    */
-    Operand op1;
-    Operand op2;
-} Instruction;
+    struct Operand op1;
+    struct Operand op2;
+};
 
 /* this is just a record for the mnemonic lookup table */
-typedef struct {
+struct InstrRecord{
     const char * name;     /* name of the mnemonic */
     short opcode;
-    InstructionType type;
-} InstrRecord;
+    enum InstructionType type;
+};
 
 /* Bit offsets for saving the instruction */
 #define SIZE_BIT     0x00000200
@@ -96,7 +96,7 @@ typedef struct {
 
 /** Extern declarations **/
 /* mnemonics table */
-extern const InstrRecord instrLookup[];
+extern const struct InstrRecord instrLookup[];
 
 /* instructions list */
 extern char * instrBuffer; /* use this to write directly to file */
@@ -105,14 +105,14 @@ extern long instrCap;
 
 /** function prototypes **/
 /* looking up instructions */
-int getInstrInfo(const char * name, InstrRecord * out);
+int getInstrInfo(const char * name, struct InstrRecord * out);
 int isInstruction(const char * name);
-int hasCustomOffset(Operand * op);
+int hasCustomOffset(struct Operand * op);
 
 /* saving and writing instructions */
-int saveInstruction(Instruction * instr);
-int instructionSizeAgreement(Instruction * instr);
-int instructionTypeAgreement(Instruction * instr);
+int saveInstruction(struct Instruction * instr);
+int instructionSizeAgreement(struct Instruction * instr);
+int instructionTypeAgreement(struct Instruction * instr);
 int writeInstructions(FILE * stream);
 
 #endif

@@ -4,7 +4,7 @@
 #include "Instruction.h"
 
 
-const InstrRecord instrLookup[] = {
+const struct InstrRecord instrLookup[] = {
 
     {"NOP",   0x0,   IT_N},
     {"ADD",   0x1,   IT_A},
@@ -35,11 +35,11 @@ const InstrRecord instrLookup[] = {
     {"JLEU",   0x38,   IT_U},
     {"JGU",   0x39,   IT_U},
     {"JGEU",   0x3a,   IT_U},
+    {"INT",    0x3b,   IT_T},
     {"CALL",   0x3c,   IT_U},
     {"RET",   0x3d,   IT_N},
     {"HLT",   0x3e,   IT_N},
-    {"INT",   0x3b,   IT_T},
-    {"IRET",  0x3f,   IT_N},
+    {"IRET",   0x3f,   IT_N},
     {"LOM",   0x40,   IT_U},
     {"ROM",   0x41,   IT_P},
     {"LOI",   0x42,   IT_U},

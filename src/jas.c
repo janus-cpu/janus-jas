@@ -5,7 +5,7 @@
 #include <string.h>
 #include <getopt.h>
 
-#include "JasParser.h"
+#include "parser.h"
 #include "JasStrings.h"
 
 #include "debug.h"
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* pass in assembly */
-    parse(infile, outfile);
+    assemble(infile, outfile);
 
     /* free memory */
     free(info.outfilename);

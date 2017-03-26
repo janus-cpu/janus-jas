@@ -1,0 +1,24 @@
+;------------------------------------------------------------------------------;
+;     Just testing out some arithmetic operations on vesta
+;------------------------------------------------------------------------------;
+
+        jmp main
+
+nums: db 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+end_nums:
+
+main:
+        mov 8, r0
+        mov nums, r3
+
+loop:
+        mov [r3], r1
+        sub r0, r1
+        out 0, r1
+
+        inc r3
+        cmp r3, end_nums
+        jl  loop
+
+pool:
+        hlt
