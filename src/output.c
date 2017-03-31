@@ -122,11 +122,6 @@ int save_instruction(struct Instruction * instr) {
         return EXIT_SUCCESS;
     }
 
-    // If instr has long/short opcodes, toggle for short.
-    DEBUG("instruction with size %d and opcode 0x%X", instr->size, instr->opcode);
-    if (instr->size == OS_SHORT && togglable_instruction(instr->opcode))
-        instr->opcode++;
-
     // Write operands, if instruction has them.
     if (has_operands(instr->type))
         save_operand(&instr->op1);

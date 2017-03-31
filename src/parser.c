@@ -177,6 +177,10 @@ static void parse_length_modifier(struct Instruction * instr) {
 
     if (*lexstr == 's') {
         instr->size = OS_SHORT;
+        instr->opcode++; // Increment to short opcode.
+        if (!togglable_instruction(instr->opcode)) {
+            ERR_QUIT("Instruction cannot be shortened.");
+        }
     } else if (*lexstr == 'l') {
         instr->size = OS_LONG;
     } else {
