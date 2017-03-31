@@ -5,7 +5,7 @@ print:
     mov.s [r10], r11a
     out.s 0, r11a
     inc   r10
-    cmp.s r11a, 0
+    cmp.s 0, r11a
     jne   print
     ret
 

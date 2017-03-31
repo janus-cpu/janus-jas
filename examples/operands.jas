@@ -6,28 +6,29 @@ int 255
 
 ; Reg
 pop r1
-pop.s r1a
+push.s r1a
 
 ; [Reg]
-pop [r3]
-pop.s [r3]
+push [r3]
+pop.s [r5]
 
 ; [Reg + Off]
-pop [r3 + 255]
+lom [r7 + 255]
 
 ;; ================ Two Operands
 ; Const Reg
 or 255, r1
-or.s 255, r1a
+and.s 255, r1a
 
 ; Reg Reg
-or r3, r5
+nor r3, r5
 
 ; [Reg] Reg
-or [r7], r9
+nand [r7], r9
 
 ; [Reg + Off] Reg
-or [r11 + 255], r13
+xnor [r11 + 255], r13
 
 ; [Reg] [Reg + Off]
-or [r0], [r0 + 255]
+cmp [r0], [r0 + 255]
+test.s [r1], [r1 - 1]

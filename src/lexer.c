@@ -8,6 +8,7 @@
 #include "parser.h"
 #include "registers.h"
 #include "jas_limits.h"
+#include "util.h"
 
 #define ERROR_FMT "\033[1m%s (%d:%d) \033[1;31merror:\033[0m %s\n"
 
@@ -64,7 +65,7 @@ char* fgetnline(char buf[], FILE* stream, int line) {
  * Print a `^` at a given column from the left of the screen.
  */
 static void fprint_caret(FILE* stream, int lo, int hi) {
-    //fputc('\t', stream);
+    fputc('\t', stream);
 
     int col = 1;
     while (col < lo) {
@@ -99,7 +100,7 @@ void jas_err(const char* msg, int line, int lo, int hi) {
     fgetnline(linestr, lexfile, line);
 
     int i = 0;
-    //fputc('\t', stderr); // Tab line in a bit.
+    fputc('\t', stderr); // Tab line in a bit.
     // Print line up until error, then color the error.
     while (i + 1 < lo) {
         fputc(linestr[i++], stderr);
@@ -193,8 +194,14 @@ static inline int issign(int c) {
 }
 
 inline int is_register(TokenType token) {
-    return (token == TOK_GL_REG || token == TOK_GS_REG ||
-            token == TOK_E_REG || token == TOK_K_REG);
+    return token == TOK_GL_REG || token == TOK_GS_REG;
+}
+
+inline int is_directive(TokenType token) {
+    return token == TOK_DATA_BYTE
+        || token == TOK_DATA_HALF
+        || token == TOK_DATA_WORD
+        || token == TOK_DATA_STR;
 }
 
 /*
@@ -203,7 +210,7 @@ inline int is_register(TokenType token) {
  */
 static inline int is_dtv(const char* s) {
     // Start with d, end with length specifier.
-    if (*s == 'd') {
+    if (*s == 'd' || *s == 'D') {
         s++;
         switch (*s) {
             case 'b':
@@ -295,44 +302,6 @@ static int is_long_reg(const char * reg) {
 
     // Catch-all
     return 0;
-}
-
-/*
- * Check if given string is an extra register.
- * Returns 1 if true, 0 if false.
- */
-static int is_extra_reg(const char * reg) {
-    int j = 0;
-
-    // Registers much start with 'r'.
-    if (reg[j++] != 'r') return 0;
-
-    if (reg[j++] != 'e') return 0;
-
-    if (reg[j] < '0' || '6' < reg[j]) return 0;
-    j++;
-
-    if (reg[j] != '\0') return 0;
-
-    // Extra registers will fall through to here.
-    return 1;
-}
-
-static int is_kernel_reg(const char * reg) {
-    int j = 0;
-
-    // Registers much start with 'r'.
-    if (reg[j++] != 'r') return 0;
-
-    if (reg[j++] != 'k') return 0;
-
-    if (reg[j] < '0' || '7' < reg[j]) return 0;
-    j++;
-
-    if (reg[j] != '\0') return 0;
-
-    // Extra registers will fall through to here.
-    return 1;
 }
 
 
@@ -428,19 +397,17 @@ TokenType next_tok(void) {
                 if (is_short_reg(lexstr))
                     return TOK_GS_REG;
 
-                // Extra
-                if (is_extra_reg(lexstr))
-                    return TOK_E_REG;
-
-                // Kernel
-                if (is_kernel_reg(lexstr))
-                    return TOK_K_REG;
             }
 
             // Directive?
-            if (is_dtv(lexstr)) {
-                return TOK_DATA_SEG;
-            }
+            if (strcaseeq(lexstr, "ds"))
+                return TOK_DATA_STR;
+            if (strcaseeq(lexstr, "db"))
+                return TOK_DATA_BYTE;
+            if (strcaseeq(lexstr, "dh"))
+                return TOK_DATA_HALF;
+            if (strcaseeq(lexstr, "dw"))
+                return TOK_DATA_WORD;
 
             // Instruction?
             if (is_instruction(lexstr))
@@ -465,6 +432,10 @@ TokenType next_tok(void) {
                 lexstr[0] = curr_char;
             }
             lexstr[1] = '\0';
+
+            // lexint is char value.
+            lexint = curr_char;
+
             eat(); // Reach the closing quote.
 
             // Error: for situations like '\'
@@ -500,6 +471,9 @@ TokenType next_tok(void) {
                 eat();
             }
             lexstr[i] = '\0';
+
+            // lexint holds the length of the string.
+            lexint = i;
 
             eat(); // Get rid of the " and advance.
             return TOK_STR_LIT;

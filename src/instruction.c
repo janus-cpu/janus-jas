@@ -79,7 +79,7 @@ void unalias_instruction(struct Instruction * instr) {
             .type = OT_CONST,
             .size = OS_SHORT,
             .const_size = CS_BYTE,
-            .constant = 0x01000000,
+            .constant = 1,
         };
 
         instr->op2 = instr->op1;
@@ -100,7 +100,7 @@ void unalias_instruction(struct Instruction * instr) {
             .type = OT_CONST,
             .size = OS_SHORT,
             .const_size = CS_BYTE,
-            .constant = 0x01000000,
+            .constant = 1,
         };
 
         instr->op2 = instr->op1;
@@ -147,14 +147,13 @@ void unalias_instruction(struct Instruction * instr) {
  *  - [0x80, 0x8A]: jmp and call Instructions
  *  - [0x70, 0x7D]: special register load/read instructions
  */
-inline int is_long_instruction(int opcode) {
+inline int is_long_instruction(unsigned char opcode) {
     return (0x80 <= opcode && opcode <= 0x8A) ||
            (0x70 <= opcode && opcode <= 0x7D);
 }
 
-inline int togglable_instruction(int opcode) {
-    return (0 <= opcode && opcode <= 0x6F) ||
-           (0xA0 <= opcode && opcode <= 0xC3);
+inline int togglable_instruction(unsigned char opcode) {
+    return opcode < 0x70 || 0x8F < opcode; // Not not togglable.
 }
 
 /*
@@ -167,8 +166,6 @@ int instructionSizeAgreement(struct Instruction * instr) {
 
     /* don't need to do size agreement for no-op */
     if (instr->type == IT_N) return 1;
-
-
 
     // Force operand size for a register indirect.
     if (instr->type == IT_P ||
@@ -194,23 +191,21 @@ int instructionSizeAgreement(struct Instruction * instr) {
     }
 
     /* "widen/narrow" operands if needed */
-    if (op1->size != op2->size) {
-        if (instr->size != 0) {
-            DEBUG("  | Matching indirect op to size %d", instr->size);
-            // If operands are indirects, it's easy to make them conform to
-            // the instruction's size.
-            if (op1->type == OT_IND || op1->type == OT_SC_IND)
-                op1->size = instr->size;
-            if (op2->type == OT_IND || op2->type == OT_SC_IND)
-                op2->size = instr->size;
-        }
-
-        // Widen constants to match the wider operand.
-        if (op1->type == OT_CONST && op1->size < op2->size)
-            op1->size = op2->size;
-        else if (op2->type == OT_CONST && op2->size < op1->size)
-            op2->size = op1->size;
+    if (instr->size != 0) {
+        DEBUG("  | Matching indirect op to size %d", instr->size);
+        // If operands are indirects, it's easy to make them conform to
+        // the instruction's size.
+        if (op1->type == OT_IND || op1->type == OT_SC_IND)
+            op1->size = instr->size;
+        if (op2->type == OT_IND || op2->type == OT_SC_IND)
+            op2->size = instr->size;
     }
+
+    // Widen constants to match the wider operand.
+    if (op1->type == OT_CONST && op1->size < op2->size)
+        op1->size = op2->size;
+    else if (op2->type == OT_CONST && op2->size < op1->size)
+        op2->size = op1->size;
 
     // Check if manipulations above matched the two sizes.
     result = (op1->size == op2->size);
@@ -218,6 +213,8 @@ int instructionSizeAgreement(struct Instruction * instr) {
     // If size is forced, check that the sizes agree with the forced size.
     if (instr->size != 0)
         result = (result && instr->size == op1->size);
+    else
+        instr->size = op1->size; // Indeterminate instr size matches operands.
 
     return result;
 }

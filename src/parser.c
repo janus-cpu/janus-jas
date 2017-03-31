@@ -21,14 +21,17 @@
 static inline void parse_line(void);
 static inline void parse_label(void);
 static inline void parse_instruction(void);
+static inline void parse_directive(void);
 
 static void parse_length_modifier(struct Instruction * instr);
 static void parse_operands(struct Instruction * instr);
 static void parse_operand(struct Operand * opnd);
 static void parse_register(struct Operand * opnd);
 static void parse_register_indirect(struct Operand * opnd);
-
-// static void readDataSegment(void);
+static void parse_data_str(void);
+static void parse_data_byte(void);
+static void parse_data_half(void);
+static void parse_data_word(void);
 
 // Current token.
 static TokenType token;
@@ -73,11 +76,9 @@ static inline void parse_line(void) {
 
         parse_instruction();
 
-    } else if (token == TOK_DATA_SEG) {
-
-        // TODO: redo
-        // readDataSegment();
-        while (next_tok() != TOK_NL); // Skip data segment line
+    } else if (is_directive(token)) {
+        // TODO: Extends to non-data directives later
+        parse_directive();
 
     } else {
         jas_err("Line must start with label, instruction, or data segment.",
@@ -375,135 +376,126 @@ static void parse_register_indirect(struct Operand * opnd) {
     token = next_tok();
 }
 
-// static void readDataSegment(void) {
-//     TokenType token;
-//     char * temp; /* reallocation temp */
-//
-//     DEBUG("Data segment `%s'", lexstr);
-//
-//     /* what kind of segment is it? */
-//     switch (lexstr[strlen(lexstr)-1]) {
-//         case 's': {
-//             token = next_tok();
-//             if (token == TOK_STR_LIT) {
-//                 char * lptr = lexstr;
-//                 char letter;
-//
-//                 DEBUG("  Reading string `%s'", lexstr);
-//
-//                 /* reallocate space for string */
-//                 instrCap = instrPtr + strlen(lexstr);
-//                 temp = (char *) realloc(instrBuffer, instrCap);
-//                 if (temp == NULL) {
-//                     fprintf(stderr, "realloc() error.\n");
-//                     exit(1);
-//                 }
-//                 instrBuffer = temp;
-//
-//                 while (*lptr != '\0') {
-//                     letter = *lptr;
-//
-//                     /* handle escaped characters */
-//                     if (letter == '\\') {
-//                         switch (*(++lptr)) {
-//                             case '0': letter = '\0'; break;
-//                             case 'n': letter = '\n'; break;
-//                             case 't': letter = '\t'; break;
-//                         }
-//                     }
-//
-//                     /* save character into the buffer */
-//                     instrBuffer[instrPtr++] = letter;
-//                     lptr++;
-//                 }
-//             } else {
-//                 jas_err("Expected string.", curr_line, lo_col, curr_col);
-//             }
-//             break;
-//         }
-//
-//         case 'b': {
-//             /* read in list of numbers/char literals as 8-bit integers */
-//             int byte;
-//
-//             while ((token = next_tok()) != TOK_NL) {
-//                 /* 8-bit integer should come first */
-//                 if (token == TOK_NUM || token == TOK_CHR_LIT) {
-//
-//                     /* read number, check range */
-//                     byte = lexint;
-//                     if (byte < SCHAR_MIN || SCHAR_MAX < byte)
-//                         jas_err("Number too large to fit in 8-bits.",
-//                                   curr_line, lo_col, curr_col);
-//
-//
-//                     /* reallocate space for byte */
-//                     instrCap = instrPtr + 1;
-//                     temp = (char *) realloc(instrBuffer, instrCap);
-//                     if (temp == NULL) {
-//                         fprintf(stderr, "realloc() error.\n");
-//                         exit(1);
-//                     }
-//                     instrBuffer = temp;
-//
-//                     /* write byte to buffer */
-//                     instrBuffer[instrPtr++] = (signed char) byte;
-//
-//                 } else {
-//                     jas_err("Expected byte value.", curr_line,
-//                             lo_col, curr_col);
-//                 }
-//
-//                 /* comma or newline should follow */
-//                 token = next_tok();
-//                 if (token != TOK_COMMA && token != TOK_NL)
-//                     jas_err("Expected `,'.", curr_line, lo_col, curr_col);
-//
-//                 if (token == TOK_NL) return; /* we're done, eol */
-//             }
-//
-//         }
-//
-//         case 'w': {
-//             /* read in the list of numbers as 32-bit integers */
-//             int word;
-//
-//             while ((token = next_tok()) != TOK_NL) {
-//                 /* 32-bit integer should come first */
-//                 if (token == TOK_NUM) {
-//
-//                     /* read the word in */
-//                     word = lexint;
-//
-//                     /* reallocate space for word */
-//                     instrCap = instrPtr + sizeof(word);
-//                     temp = (char *) realloc(instrBuffer, instrCap);
-//                     if (temp == NULL) {
-//                         fprintf(stderr, "realloc() error.\n");
-//                         exit(1);
-//                     }
-//                     instrBuffer = temp;
-//
-//                     /* write word to buffer */
-//                     memcpy(instrBuffer + instrPtr, &word, sizeof(word));
-//                     instrPtr += sizeof(word);
-//
-//                 } else {
-//                     jas_err("Expected number.", curr_line, lo_col, curr_col);
-//                 }
-//
-//                 /* comma or newline should follow */
-//                 token = next_tok();
-//                 if (token != TOK_COMMA && token != TOK_NL)
-//                     jas_err("Expected `,'.", curr_line, lo_col, curr_col);
-//
-//                 if (token == TOK_NL) return; /* we're done, eol */
-//             }
-//         }
-//
-//         default:
-//             jas_err("Non-existent data segment type.", curr_line, lo_col,
-//                       curr_col);
-//     }
-//
-// }
+/*
+ * Parses an assembler directive.
+ *     e.g. `ds "hello\0"`
+ *          `db 255, 42`
+ * Pre-conditions: current token is one of TOK_DATA_SEG, ...
+ * Post-conditions: current token is TOK_NL.
+ */
+static inline void parse_directive(void) {
+    switch (token) {
+        case TOK_DATA_STR:
+            parse_data_str();
+            break;
+        case TOK_DATA_BYTE:
+            parse_data_byte();
+            break;
+        case TOK_DATA_HALF:
+            parse_data_half();
+            break;
+        case TOK_DATA_WORD:
+            parse_data_word();
+            break;
+        default:
+            ERR_QUIT("Bad stuff happened");
+    }
+}
+
+/*
+ * Parse `ds` directive.
+ * Pre-conditions: current token is on `ds`.
+ * Post-conditions: current token is TOK_NL.
+ */
+static void parse_data_str(void) {
+    token = next_tok(); // Eat `ds`
+
+    // String should follow.
+    if (token != TOK_STR_LIT)
+        ERR_QUIT("Expected string literal.");
+
+    // String is in lexstr, with length in lexint.
+    // Copy over to out_buffer and increment bytes.
+    memcpy(out_buffer + loc_ctr, lexstr, lexint);
+    loc_ctr += lexint;
+
+    token = next_tok(); // Eat string literal.
+}
+
+/*
+ * Parse `db` directive.
+ * Pre-conditions: current token is on `db`.
+ * Post-conditions: current token is TOK_NL.
+ */
+static void parse_data_byte(void) {
+    // List of comma-delimited bytes follow `db`.
+    while ((token = next_tok()) != TOK_NL) {
+        if (token != TOK_NUM && token != TOK_CHR_LIT)
+            ERR_QUIT("Expected numeric or character literal.");
+
+        DEBUG(" { Reading byte %ld", lexint);
+
+        // lexint contains numeric value of byte.
+        if (lexint < SBYTE_MIN || UBYTE_MAX < lexint)
+            ERR_QUIT("Number too large to fit in 8 bits.");
+
+        out_buffer[loc_ctr++] = lexint; // Set into buffer
+
+        // Advance past byte.
+        token = next_tok();
+
+        // TOK_NL signals end of list.
+        if (token == TOK_NL) return;
+
+        // Comma should follow if no newline.
+        if (token != TOK_COMMA)
+            ERR_QUIT("Expected `,` separator.");
+    }
+}
+
+/*
+ * Helper function for parse_data_half and parse_data_word.
+ */
+static void parse_data_num_list(int32_t low, uint32_t hi, int width) {
+    // List of comma-delimited bytes follow `d_`.
+    while ((token = next_tok()) != TOK_NL) {
+        if (token != TOK_NUM)
+            ERR_QUIT("Expected numeric literal.");
+
+        // lexint contains numeric value of byte.
+        if (lexint < low || hi < lexint)
+            ERR_QUIT("Number too large to fit.");
+
+        // Copy over to out_buffer and increment bytes.
+        memcpy(out_buffer + loc_ctr, &lexint, width);
+        loc_ctr += width;
+
+        // Advance past byte.
+        token = next_tok();
+
+        // TOK_NL signals end of list.
+        if (token == TOK_NL) return;
+
+        // Comma should follow if no newline.
+        if (token != TOK_COMMA)
+            ERR_QUIT("Expected `,` separator.");
+    }
+}
+
+/*
+ * Parse `dh` directive.
+ * Pre-conditions: current token is on `dh`.
+ * Post-conditions: current token is TOK_NL.
+ */
+static void parse_data_half(void) {
+    parse_data_num_list(SHALF_MIN, UHALF_MAX, HALF_WIDTH);
+}
+
+/*
+ * Parse `dw` directive.
+ * Pre-conditions: current token is on `dw`.
+ * Post-conditions: current token is TOK_NL.
+ */
+static void parse_data_word(void) {
+    parse_data_num_list(SWORD_MIN, UWORD_MAX, WORD_WIDTH);
+}

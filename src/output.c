@@ -39,9 +39,6 @@ static void save_operand(struct Operand * op) {
     unsigned char extra = 0;   // Extra descriptor may be needed.
     enum ConstantSize size = op->const_size; // Constant size in bytes.
 
-    // Shift constant flush left.
-    unsigned int constant = op->constant << (32 - 8 * size);
-
     // Write down the C/R:D/I type.
     desc |= op->type;
 
@@ -78,7 +75,7 @@ static void save_operand(struct Operand * op) {
 
     // Write out constant if it isn't skipped.
     if (size != 0) {
-        memcpy(&out_buffer[loc_ctr], &constant, size);
+        memcpy(&out_buffer[loc_ctr], &op->constant, size);
         loc_ctr += size;
     }
 
@@ -118,7 +115,15 @@ int save_instruction(struct Instruction * instr) {
     DEBUG("<< Output: Writing instr 0x%x (%s) with",
           instr->opcode, instr->name);
 
+    // INT doesn't have a descriptor byte.
+    if (instr->opcode == OPCODE_INT) {
+        out_buffer[loc_ctr++] = instr->op1.constant;
+        DEBUG("%s","");
+        return EXIT_SUCCESS;
+    }
+
     // If instr has long/short opcodes, toggle for short.
+    DEBUG("instruction with size %d and opcode 0x%X", instr->size, instr->opcode);
     if (instr->size == OS_SHORT && togglable_instruction(instr->opcode))
         instr->opcode++;
 

@@ -88,6 +88,7 @@ struct InstrRecord {
 };
 
 #define MAX_INSTR_SIZE 13 // 1 + (2 + 4) + (2 + 4)
+#define OPCODE_INT 0x8E   // For easy comparison to INT opcode
 
 /** Extern declarations **/
 
@@ -96,8 +97,8 @@ struct InstrRecord {
 int instr_info(const char * name, struct InstrRecord * out);
 
 int is_instruction(const char * name);
-int is_long_instruction(int opcode);
-int togglable_instruction(int opcode);
+int is_long_instruction(unsigned char opcode);
+int togglable_instruction(unsigned char opcode);
 int has_operands(enum InstructionType ty);
 int has_two_operands(enum InstructionType ty);
 
