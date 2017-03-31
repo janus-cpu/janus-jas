@@ -1,0 +1,8 @@
+;| Big constant
+mov 0xAAAAAAAAAAA, rr
+
+;| Bad register
+mov r00, rr
+
+;| Missing brackets
+mov [r0, r1
