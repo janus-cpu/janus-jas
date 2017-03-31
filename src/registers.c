@@ -2,19 +2,22 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "Registers.h"
+#include "registers.h"
 
 #define REG_SIZE 4
 #define REG_BASE 10
 
-int isShortRegister(char endchar) {
+int is_short_register(char endchar) {
     return (endchar == 'a' ||
             endchar == 'b' ||
             endchar == 'c' ||
             endchar == 'd');
 }
 
-RegisterId getRegisterId(const char * name) {
+/*
+ * Get the corresponding register id for the given name.
+ */
+RegisterId register_id(const char * name) {
     RegisterId id = 0;
     char * endptr;
 
@@ -23,18 +26,16 @@ RegisterId getRegisterId(const char * name) {
 
     /* check for aliased registers */
     switch (*name) {
+        case 'r': return 14;
         case 's': return 15;
-        case 'e': id = 16; name++; break;
-        case 'k': id = 24; name++; break;
     }
-
 
     errno = 0;
     id += (RegisterId) strtol(name, &endptr, REG_BASE);
 
-    if (isShortRegister(*endptr)) {
+    if (is_short_register(*endptr)) {
         id *= REG_SIZE;
-        id += (*endptr - 'a') + 1;
+        id += (*endptr - 'a');
     }
 
     return id;

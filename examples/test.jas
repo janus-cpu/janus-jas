@@ -1,9 +1,9 @@
 ; aliased registers!!
 
-    mov 10, rs
+    mov 10, rr
     mov 10, r14
 
     mov -1, r0
 
-    mov 10, rf
+    mov 10, rs
     mov 10, r15

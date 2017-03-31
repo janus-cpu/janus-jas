@@ -2,16 +2,27 @@
 # Root Makefile for the Janus Assembler
 #
 
-.PHONY = cfg jas sources clean new
+.PHONY = sources clean new
 
-CC_FLAGS = -c -g -Wall -Werror -pedantic -O0 --std=c99
-CC_WFLAGS = -c -g -O0 --std=c99
+CC_FLAGS = -c -Wall -Werror -pedantic --std=c99
 CC = gcc
-
 SRC_FILES = jas.c
-OBJ_FILES = parser.o lexer.o Instruction.o Registers.o Labels.o
-
+OBJ_FILES = parser.o lexer.o instruction.o registers.o labels.o output.o \
+			jas_limits.o util.o
 MAKE = make --no-print-directory
+
+ifeq ($(opt),true)
+	CC_FLAGS += -O3
+else
+	CC_FLAGS += -g
+endif
+
+# Export for child make
+export CC_FLAGS
+export CC
+export SRC_FILES
+export OBJ_FILES
+export MAKE
 
 all: jas
 

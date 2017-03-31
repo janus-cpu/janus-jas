@@ -2,28 +2,28 @@
 ; hello world???
 ;
 
-	mov     1000, r14 ; move the stack pointer to somewhere sensible.
+    mov     1000, rs ; move the stack pointer to somewhere sensible.
 main:
-	push	0x00
-	push	0x0A
-	push	0x6F
-	push	0x6C
-	push	0x6C
-	push	0x65
-	push	0x68
-	je	main
+    push   0x00
+    push   0x0A
+    push   0x6F
+    push   0x6C
+    push   0x6C
+    push   0x65
+    push   0x68
+    je     main
 
-	pop	r0
-	cmp	r0, 0
-	je	end
+    pop    r0
+    cmp.s  0, r0a
+    je     end
 
 loop:
 
-	out	1, r0
+    out    1, r0
 
-	pop	r0
-	cmp	r0, 0
-	jne	loop
+    pop    r0
+    cmp.s  0, r0a
+    jne    loop
 
 end:
-	hlt
+    hlt

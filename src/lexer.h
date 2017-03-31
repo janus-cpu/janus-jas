@@ -47,5 +47,6 @@ extern FILE* lexfile;
 
 void jas_err(const char* msg, int line, int lo, int hi);
 TokenType next_tok(void);
+int is_register(TokenType token);
 
 #endif

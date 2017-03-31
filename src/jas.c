@@ -5,8 +5,8 @@
 #include <string.h>
 #include <getopt.h>
 
-#include "parser.h"
-#include "JasStrings.h"
+#include "output.h"
+#include "jas_strings.h"
 
 #include "debug.h"
 #include "jas.h"
@@ -66,9 +66,6 @@ int main(int argc, char *argv[]) {
 
     fflush(outfile);
     fclose(outfile);
-
-    /* delete error file */
-    //TODO uncomment: if (yyerr) remove(outfilename);
 
     return EXIT_SUCCESS;
 }

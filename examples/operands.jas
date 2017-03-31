@@ -1,0 +1,33 @@
+;; Testing each operand type to see if they are encoded properly
+
+;; ================ One Operand
+; Const
+int 255
+
+; Reg
+pop r1
+pop.s r1a
+
+; [Reg]
+pop [r3]
+pop.s [r3]
+
+; [Reg + Off]
+pop [r3 + 255]
+
+;; ================ Two Operands
+; Const Reg
+or 255, r1
+or.s 255, r1a
+
+; Reg Reg
+or r3, r5
+
+; [Reg] Reg
+or [r7], r9
+
+; [Reg + Off] Reg
+or [r11 + 255], r13
+
+; [Reg] [Reg + Off]
+or [r0], [r0 + 255]

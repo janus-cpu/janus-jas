@@ -12,7 +12,7 @@
 #define ANY_BASE 0
 
 /** function prototypes **/
-void assemble(FILE * in, FILE * out);
-int isRegister(TokenType);
+void parse(void);
+void analyze(void);
 
 #endif

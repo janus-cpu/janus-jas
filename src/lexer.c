@@ -3,11 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <limits.h>
 
-#include "Instruction.h"
+#include "instruction.h"
 #include "parser.h"
-#include "Registers.h"
+#include "registers.h"
+#include "jas_limits.h"
 
 #define ERROR_FMT "\033[1m%s (%d:%d) \033[1;31merror:\033[0m %s\n"
 
@@ -31,7 +31,7 @@ int j_err = 0;
  * Get a line from a FILE* stream. Does not include \n, but is null terminated.
  */
 static char* fgetline(char buf[], FILE* stream) {
-    char c;
+    int c;
     int i = 0;
     while ((c = fgetc(stream)) != '\n' && c != EOF)
         buf[i++] = c;
@@ -40,10 +40,31 @@ static char* fgetline(char buf[], FILE* stream) {
 }
 
 /*
+ * Get the specified line from a file into buffer.
+ */
+char* fgetnline(char buf[], FILE* stream, int line) {
+    // Seek to top of file.
+    fseek(stream, 0, SEEK_SET);
+
+    // Skip one line since line numbers are 1-based.
+    line--;
+
+    // Count lines until reaching the line-th line.
+    int c;
+    while ((c = fgetc(stream)) != EOF) {
+        if (c == '\n') line--;
+        if (line == 0) break;
+    }
+
+    // Get line-th line.
+    return fgetline(buf, stream);
+}
+
+/*
  * Print a `^` at a given column from the left of the screen.
  */
 static void fprint_caret(FILE* stream, int lo, int hi) {
-    fputc('\t', stream);
+    //fputc('\t', stream);
 
     int col = 1;
     while (col < lo) {
@@ -53,7 +74,7 @@ static void fprint_caret(FILE* stream, int lo, int hi) {
 
     fprintf(stream, "\033[1;33m");
     fputc('^', stream);
-    while (col < hi) {
+    while (col + 1 < hi) {
         fputc('~', stream);
         col++;
     }
@@ -73,13 +94,12 @@ void jas_err(const char* msg, int line, int lo, int hi) {
     // We need to save the absolute position, since getting the whole line later
     // moves the file ptr an unknown distance.
     pos = ftell(lexfile);
-    fseek(lexfile, -hi, SEEK_CUR);
 
     // Get the line in question so that we can print it out.
-    fgetline(linestr, lexfile);
+    fgetnline(linestr, lexfile, line);
 
     int i = 0;
-    fputc('\t', stderr); // Tab line in a bit.
+    //fputc('\t', stderr); // Tab line in a bit.
     // Print line up until error, then color the error.
     while (i + 1 < lo) {
         fputc(linestr[i++], stderr);
@@ -170,6 +190,11 @@ static inline int is_bin(int c) {
 
 static inline int issign(int c) {
     return c == '+' || c == '-';
+}
+
+inline int is_register(TokenType token) {
+    return (token == TOK_GL_REG || token == TOK_GS_REG ||
+            token == TOK_E_REG || token == TOK_K_REG);
 }
 
 /*
@@ -329,8 +354,8 @@ static int fgets_base(char buf[], FILE* stream, int base) {
     switch (base) {
         case 2: check = is_bin; break;
         case 8: check = is_oct; break;
-        case 10: check = isdigit; break;
         case 16: check = isxdigit; break;
+        default: check = isdigit; break; // Default to decimal
     }
 
     while (curr_char != EOF && check(curr_char)) {
@@ -418,7 +443,7 @@ TokenType next_tok(void) {
             }
 
             // Instruction?
-            if (isInstruction(lexstr))
+            if (is_instruction(lexstr))
                 return TOK_INSTR;
 
             // Label?
@@ -520,7 +545,7 @@ TokenType next_tok(void) {
             lexint = sign * strtol(lexstr, NULL, base);
 
             // Check for `int` size (we can support max of 32 bits)
-            if (lexint < INT_MIN || UINT_MAX < lexint) {
+            if (fit_size(lexint) == -1) {
                 jas_err("Integer larger than 32 bits.",
                         curr_line, lo_col, curr_col);
             }

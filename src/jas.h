@@ -23,11 +23,6 @@ struct argInfo {
     char * outfilename;
 };
 
-/* flex globals */
-extern int yylex();
-extern FILE * yyin;
-extern int lineno;
-
 /* fn prototypes */
 static int parseArgs(int argc, char * const argv[], struct argInfo *);
 
