@@ -1,5 +1,7 @@
 *.sw*
 *.o
 jas
+jas.exe
 *.out
 TODO
+.DS_Store

@@ -21,6 +21,7 @@ typedef enum TokenType {
     /* operators */
     TOK_PLUS,
     TOK_MINUS,
+    TOK_STAR,
     TOK_DOT,
 
     /* delimiters */

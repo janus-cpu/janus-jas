@@ -308,6 +308,29 @@ static void parse_register(struct Operand * opnd) {
 }
 
 /*
+ * Accumulates 'scale' into either reg1_* or reg2_* based on register 'ID',
+ * either matching or claiming an empty space if possible.
+ */
+static void reg_accumulate(RegisterId id, int scale, RegisterId * reg1_id, int * reg1_scale,  RegisterId * reg2_id, int * reg2_scale) {
+    // First see if our id sits in reg1 or reg2.
+    // If it doesn't, then check if reg1 or reg2 are empty.
+    // If they are, fill it, otherwise, be sad.
+    if (*reg1_id == id) {
+        *reg1_scale += scale;
+    } else if (*reg2_id == id) {
+        *reg2_scale += scale;
+    } else if (*reg1_id == (RegisterId) -1) {
+        *reg1_id = id;
+        *reg1_scale = scale;
+    } else if (*reg2_id == (RegisterId) -1) {
+        *reg2_id = id;
+        *reg2_scale = scale;
+    } else {
+        ERR_QUIT("Cannot process indirect with 3 operands.");
+    }
+}
+
+/*
  * Parses an indirect memory access, with an offset or not.
  *     e.g. `[r0]` or `[r0 + 4]` or `[-4 + r0]`
  * Pre-conditions: current token is TOK_LBRACKET.
@@ -315,71 +338,110 @@ static void parse_register(struct Operand * opnd) {
  *                  `opnd` will contain information about the operand.
  */
 static void parse_register_indirect(struct Operand * opnd) {
-    token = next_tok(); // Grab inner token of the indirection.
+    bool first = true;
+    int constant = 0;
+    int reg1_scale = 0, reg2_scale = 0;
+    RegisterId reg1_id = -1, reg2_id = -1;
 
-    // Two possibilities, Register or Register with Constant following.
-    if (!is_register(token) && token != TOK_NUM)
-        ERR_QUIT("Expected register or number following '['.");
+    token = next_tok();
 
-    if (is_register(token)) {
-        // Get that register.
-        parse_register(opnd);
-
-        if (token == TOK_RBRACKET) {
-
-            // Simple indirect access with skipped constant.
-            opnd->const_size = CS_SKIP;
-
-        } else if (token == TOK_PLUS
-                || token == TOK_MINUS
-                || token == TOK_NUM) {
-            // Save the sign of the offset.
-            int sign = (token == TOK_PLUS ? +1 : -1);
-            int offset; // Hold offset
-
-            // If we accidentally parse a TOK_NUM here but
-            // it has [+-] as its start character, use it as the offset.
-            if (token == TOK_NUM && (*lexstr == '-' || *lexstr == '+')) {
-                offset = lexint;
-            } else {
-                // Next token should be a number.
+    while (true) {
+        if (!first) {
+            if (token == TOK_RBRACKET) {
                 token = next_tok();
-                if (token != TOK_NUM) ERR_QUIT("Expected constant offset.");
-                offset = sign * lexint;
+                break;
+            } else if (token == TOK_PLUS) {
+                token = next_tok();
+            } else {
+                ERR_QUIT("This .... uhhh.. should be unreachable... (:");
             }
+        } else
+            first = false;
 
-            opnd->const_size = fit_size(offset);
-            opnd->constant = offset;
-
-            // Advance token to ']'.
+        if (token == TOK_NUM) {
+            int scale = lexint;
             token = next_tok();
+
+            if (token == TOK_STAR) {
+              RegisterId id;
+
+              if (next_tok() != TOK_NUM) {
+                  ERR_QUIT("Expected number following offset multiplication.");
+              }
+
+              id = register_id(lexstr);
+              reg_accumulate(id, scale, &reg1_id, &reg1_scale, &reg2_id, &reg2_scale);
+              token = next_tok();
+            } else if (token == TOK_RBRACKET || token == TOK_PLUS) {
+                constant += scale;
+            } else {
+                ERR_QUIT("Expected `+`, `*`, or `]`.");
+            }
+        } else if (token == TOK_GL_REG) {
+            RegisterId id = register_id(lexstr);
+            DEBUG("Read reg %d", id);
+            token = next_tok();
+
+            if (token == TOK_STAR) {
+                int scale;
+
+                if (next_tok() != TOK_NUM) {
+                    ERR_QUIT("Expected number following register multiplication.");
+                }
+
+                scale = lexint;
+                reg_accumulate(id, scale, &reg1_id, &reg1_scale, &reg2_id, &reg2_scale);
+                token = next_tok();
+            } else if (token == TOK_RBRACKET || token == TOK_PLUS) {
+                reg_accumulate(id, 1, &reg1_id, &reg1_scale, &reg2_id, &reg2_scale);
+            } else {
+                ERR_QUIT("Expected `+`, `*`, or `]`.");
+            }
         } else {
-            ERR_QUIT("Expected '+', '-', or ']'.");
+            ERR_QUIT("Expected integer or long register.");
         }
-
-    } else if (token == TOK_NUM) {
-
-        // Set data as offset indirect access.
-        opnd->constant = lexint;
-        opnd->const_size = fit_size(lexint);
-
-        token = next_tok();
-        // Next token should be a plus sign.
-        if (token != TOK_PLUS)
-            ERR_QUIT("Expected '+'.");
-
-        // Next token should be a register.
-        parse_register(opnd);
     }
 
-    // Next token must be a closing bracket.
-    if (token != TOK_RBRACKET) ERR_QUIT("Expected ']'.");
+    if (reg2_id == (RegisterId) -1) {
+        if (reg1_id == (RegisterId) -1)
+            ERR_QUIT("Need at least 1 register in an indirect access.");
 
-    // Overwrite any changes to type.
-    opnd->type = OT_IND;
+        if (reg1_scale == 1) {
+            opnd->type = OT_IND;
+            opnd->reg = reg1_id;
+        } else if (reg1_scale == 2 || reg1_scale == 3 ||
+                   reg1_scale == 5 || reg1_scale == 9) {
+            opnd->type = OT_SC_IND;
+            opnd->reg = opnd->index_reg = reg1_id;
+            opnd->scale = reg1_scale - 1;
+        } else {
+            ERR_QUIT("TODO: pls better error msg.");
+        }
+    } else {
+        if (reg1_scale == 1) {
+            if (reg2_scale != 1 && reg2_scale != 2 &&
+                reg2_scale != 4 && reg2_scale != 8)
+                ERR_QUIT("Offset register needs to be power of 2.");
+            opnd->type = OT_SC_IND;
+            opnd->reg = reg1_id;
+            opnd->index_reg = reg2_id;
+            opnd->scale = reg2_scale;
+        } else if (reg2_scale == 1) {
+            if (reg1_scale != 1 && reg1_scale != 2 &&
+                reg1_scale != 4 && reg1_scale != 8)
+                ERR_QUIT("Offset register needs to be power of 2.");
+            opnd->type = OT_SC_IND;
+            opnd->reg = reg2_id;
+            opnd->index_reg = reg1_id;
+            opnd->scale = reg1_scale;
+        } else {
+          ERR_QUIT("TODO: no base :(");
+        }
+    }
 
-    // Advance to token after ']'.
-    token = next_tok();
+    opnd->constant = constant;
+    opnd->const_size = fit_size(constant);
+    opnd->size = OS_SHORT;
 }
 
 /*

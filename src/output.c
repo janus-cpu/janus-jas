@@ -99,7 +99,7 @@ static void save_operand(struct Operand * op) {
             DEBUG("\tOT_REG    sz=%d rg=%d",
                      op->size, op->reg);
         } else {
-            DEBUG("\tOT_SC_IND sz=%d rg=%d sc=%d cs=%d irg=%d ct=%d",
+            DEBUG("\tOT_SC_IND sz=%d rg=%d sc=%d irg=%d cs=%d ct=%d",
                      op->size, op->reg, op->scale, op->index_reg,
                      op->const_size, op->constant);
         }

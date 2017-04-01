@@ -533,6 +533,7 @@ TokenType next_tok(void) {
             case ',': eat(); return TOK_COMMA;
             case '.': eat(); return TOK_DOT;
             case '+': eat(); return TOK_PLUS;
+            case '*': eat(); return TOK_STAR;
             case '-': eat(); return TOK_MINUS;
             case '[': eat(); return TOK_LBRACKET;
             case ']': eat(); return TOK_RBRACKET;
