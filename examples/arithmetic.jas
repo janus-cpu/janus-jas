@@ -17,8 +17,8 @@ loop:
         out 0, r1
 
         inc r3
-        cmp r3, end_nums
-        jl  loop
+        cmp end_nums, r3
+        jg  loop
 
 pool:
         hlt

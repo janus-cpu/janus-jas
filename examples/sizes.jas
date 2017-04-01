@@ -1,3 +1,6 @@
 mov 0xFF, r0 ; 1 byte
 mov 0xFFFF, r0 ; 2 bytes
 mov 0xFFFFFFFF, r0 ; 4 bytes
+mov -1, r0 ; 4 bytes
+mov.s -1, r0a ; 1 byte
+add -1, r0 ; 4 bytes

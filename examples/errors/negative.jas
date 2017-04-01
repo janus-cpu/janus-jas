@@ -1,0 +1,3 @@
+;; Test negative numbers that clash with instruction size
+
+mov.s   -257, r0a ; Can't fit -257 in a byte

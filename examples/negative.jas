@@ -1,0 +1,7 @@
+;; Test negative constant encodings
+
+mov     -1, r0   ; 4 bytes
+mov.s   -1, r0a  ; 1 byte
+
+mov     [r0 - 1], r1  ; 4 bytes
+mov.s   [r0 - 1], r1a ; 4 bytes
