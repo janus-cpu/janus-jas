@@ -22,6 +22,7 @@
 #define UWORD_MAX (uint32_t) 0xFFFFFFFF
 #define WORD_WIDTH 4
 
-int fit_size(int value);
+int fit_size(unsigned long value);
+int fit_size_hint(unsigned long value, int hint);
 
 #endif // JAS_LIMITS_H

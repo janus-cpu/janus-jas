@@ -30,6 +30,14 @@ void assemble(FILE * in, FILE * out) {
     }
 }
 
+// Convert byte count into proper bit encoding
+static int size_as_bits(enum ConstantSize sz) {
+    if (sz == CS_WORD)
+        return 3;
+    else
+        return sz;
+}
+
 /*
  * Write operand to buffer.
  * Side effects: increments loc_ctr by number of bytes written.
@@ -37,7 +45,7 @@ void assemble(FILE * in, FILE * out) {
 static void save_operand(struct Operand * op) {
     unsigned char desc = 0;    // Descriptor byte.
     unsigned char extra = 0;   // Extra descriptor may be needed.
-    enum ConstantSize size = op->const_size; // Constant size in bytes.
+    int size_bits = size_as_bits(op->const_size); // Constant size in bytes.
 
     // Write down the C/R:D/I type.
     desc |= op->type;
@@ -47,7 +55,7 @@ static void save_operand(struct Operand * op) {
         case OT_CONST:
         case OT_IND:
             // Set size of constant and register val.
-            desc |= size << 2;
+            desc |= size_bits << 2;
             desc |= op->reg << 4;
             break;
 
@@ -61,7 +69,7 @@ static void save_operand(struct Operand * op) {
             desc |= op->scale << 2;
             desc |= op->reg << 4;
             extra |= op->index_reg;
-            extra |= size << 4;
+            extra |= size_bits << 4;
             break;
     }
 
@@ -74,9 +82,9 @@ static void save_operand(struct Operand * op) {
     }
 
     // Write out constant if it isn't skipped.
-    if (size != 0) {
-        memcpy(&out_buffer[loc_ctr], &op->constant, size);
-        loc_ctr += size;
+    if (op->const_size != 0) {
+        memcpy(&out_buffer[loc_ctr], &op->constant, op->const_size);
+        loc_ctr += op->const_size;
     }
 
     // Debugging stuff

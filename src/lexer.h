@@ -43,7 +43,7 @@ typedef enum TokenType {
 extern int j_err;
 extern int curr_line, curr_col, lo_col;
 extern char lexstr[];
-extern long lexint;
+extern unsigned long lexint;
 extern FILE* lexfile;
 
 /** lexer functions -------------------------------------------------------- **/

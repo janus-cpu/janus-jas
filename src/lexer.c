@@ -9,6 +9,7 @@
 #include "registers.h"
 #include "jas_limits.h"
 #include "util.h"
+#include "debug.h"
 
 #define ERROR_FMT "\033[1m%s (%d:%d) \033[1;31merror:\033[0m %s\n"
 
@@ -25,7 +26,7 @@ char linebuf[BUFSIZ]; // TODO maybe remove? need to figure out where to save
 
 static int curr_char;
 char lexstr[BUFSIZ];
-long lexint;
+unsigned long lexint;
 int j_err = 0;
 
 /*
@@ -52,9 +53,8 @@ char* fgetnline(char buf[], FILE* stream, int line) {
 
     // Count lines until reaching the line-th line.
     int c;
-    while ((c = fgetc(stream)) != EOF) {
+    while (line > 0 && (c = fgetc(stream)) != EOF) {
         if (c == '\n') line--;
-        if (line == 0) break;
     }
 
     // Get line-th line.
@@ -263,7 +263,7 @@ static int is_short_reg(const char * reg) {
         j++;
 
         // If another digit, move over once more.
-        if (isdigit(reg[j])) j++;
+        if ('0' <= reg[j] && reg[j] <= '3') j++;
 
         // If we encounter [abcd] at end of string, all is good (:
         if ('a' <= reg[j] && reg[j] <= 'd' && reg[j+1] == '\0')
@@ -294,7 +294,7 @@ static int is_long_reg(const char * reg) {
         j++;
 
         // If another digit, move over once more.
-        if (isdigit(reg[j])) j++;
+        if ('0' <= reg[j] && reg[j] <= '5') j++;
 
         // Should be at end of string now.
         if (reg[j] == '\0') return 1;
@@ -515,13 +515,14 @@ TokenType next_tok(void) {
             chars_read = fgets_base(lexstr + 1, lexfile, base);
             curr_col += chars_read;
 
-            // Convert to integer value, using saved sign.
-            lexint = sign * strtol(lexstr, NULL, base);
+            // Convert to integer value.
+            lexint = strtol(lexstr, NULL, base);
 
             // Check for `int` size (we can support max of 32 bits)
             if (fit_size(lexint) == -1) {
                 jas_err("Integer larger than 32 bits.",
                         curr_line, lo_col, curr_col);
+                return TOK_UNK;
             }
 
             return TOK_NUM;

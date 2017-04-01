@@ -30,8 +30,7 @@ enum OperandType {
 
 /* Indeterminant(instruction-only), long, or short */
 enum OperandSize {
-    OS_INDET = 0, // only for Instructions that don't force size
-    OS_LONG  = 4, // 32-bit long register argument
+    OS_LONG  = 4, // 32-bit long register argument (default)
     OS_SHORT = 1  // 8-bit  short register argument
 };
 
@@ -42,7 +41,7 @@ enum ConstantSize {
     CS_SKIP = 0, // Skipped constant
     CS_BYTE = 1, // 1 byte constant
     CS_HALF = 2, // 2 byte constant
-    CS_WORD = 3  // 4 byte constant
+    CS_WORD = 4  // 4 byte constant
 };
 
 /* Operand type declaration */
@@ -104,7 +103,7 @@ int has_two_operands(enum InstructionType ty);
 
 /* saving and writing instructions */
 void unalias_instruction(struct Instruction * instr);
-int instructionSizeAgreement(struct Instruction * instr);
-int instructionTypeAgreement(struct Instruction * instr);
+int instr_size_agreement(struct Instruction * instr);
+int instr_type_agreement(struct Instruction * instr);
 
 #endif

@@ -126,6 +126,8 @@ static inline void parse_instruction(void) {
     token = next_tok();
 
     // Length modifier?
+    // Assume size is long by default.
+    newInstr.size = OS_LONG;
     if (token == TOK_DOT) {
         parse_length_modifier(&newInstr);
     }
@@ -134,7 +136,7 @@ static inline void parse_instruction(void) {
     parse_operands(&newInstr);
 
     // Check that the operand types agree with the instruction.
-    if (!instructionTypeAgreement(&newInstr)) {
+    if (!instr_type_agreement(&newInstr)) {
         jas_err("Instruction operands do not agree with its prototype.",
                 instr_line, instr_lo_col, instr_curr_col);
         return;
@@ -150,7 +152,7 @@ static inline void parse_instruction(void) {
             newInstr.name,     newInstr.type, newInstr.size,
             newInstr.op1.size, newInstr.op2.size);
 
-    if (!instructionSizeAgreement(&newInstr)) {
+    if (!instr_size_agreement(&newInstr)) {
         jas_err("Instruction operands' sizes are not in agreement.",
                 instr_line, instr_lo_col, instr_curr_col);
         return;
@@ -440,7 +442,7 @@ static void parse_data_byte(void) {
         DEBUG(" { Reading byte %ld", lexint);
 
         // lexint contains numeric value of byte.
-        if (lexint < SBYTE_MIN || UBYTE_MAX < lexint)
+        if (UBYTE_MAX < lexint)
             ERR_QUIT("Number too large to fit in 8 bits.");
 
         out_buffer[loc_ctr++] = lexint; // Set into buffer
@@ -460,14 +462,14 @@ static void parse_data_byte(void) {
 /*
  * Helper function for parse_data_half and parse_data_word.
  */
-static void parse_data_num_list(int32_t low, uint32_t hi, int width) {
+static void parse_data_num_list(uint32_t hi, int width) {
     // List of comma-delimited bytes follow `d_`.
     while ((token = next_tok()) != TOK_NL) {
         if (token != TOK_NUM)
             ERR_QUIT("Expected numeric literal.");
 
         // lexint contains numeric value of byte.
-        if (lexint < low || hi < lexint)
+        if (hi < lexint)
             ERR_QUIT("Number too large to fit.");
 
         // Copy over to out_buffer and increment bytes.
@@ -492,7 +494,7 @@ static void parse_data_num_list(int32_t low, uint32_t hi, int width) {
  * Post-conditions: current token is TOK_NL.
  */
 static void parse_data_half(void) {
-    parse_data_num_list(SHALF_MIN, UHALF_MAX, HALF_WIDTH);
+    parse_data_num_list(UHALF_MAX, HALF_WIDTH);
 }
 
 /*
@@ -501,5 +503,5 @@ static void parse_data_half(void) {
  * Post-conditions: current token is TOK_NL.
  */
 static void parse_data_word(void) {
-    parse_data_num_list(SWORD_MIN, UWORD_MAX, WORD_WIDTH);
+    parse_data_num_list(UWORD_MAX, WORD_WIDTH);
 }
