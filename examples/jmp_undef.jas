@@ -1,0 +1,53 @@
+;; Testing undefined labels and that they resolve properly.
+
+; addr 0
+
+        jmp label       ;; undefined when first seen
+
+; addr 6
+
+_mul:
+        ; some subroutine for multiplication here
+        ret
+
+; addr 7
+
+
+label:
+        call function   ;; undefined when first seen
+
+; addr 13
+
+
+function:
+        mov label, r0
+
+; addr 13 + 6 + 1 = 20
+
+        mov int_tbl, r1    ;; undefined when first seen
+
+; addr 20 + 6 + 1 = 27
+
+        call _mul
+
+; addr 27 + 6 = 33
+
+        ret
+
+; addr 34
+
+int_tbl:   dw int1, int2, int3  ;; undefined when first seen
+
+; addr 34 + 4 + 4 + 4 = 46
+
+int1: dw 5
+
+; addr 50
+
+int2: dw 2
+
+; addr 54
+
+int3: dw 666
+
+; addr 58

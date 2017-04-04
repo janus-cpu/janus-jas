@@ -3,20 +3,21 @@
 
 /** symbol table infrastructure **/
 typedef struct {
-    char * label;
-    int address; // Location that the label labels.
-} LabelRec;
+    char * label; // Label name
+    int address;  // Either the address the label points to (sym_tab),
+                  // or the address of the label in memory (undef_tab).
+} SymbolRec;
 
-/* for labels that are undefined, store in a list */
 typedef struct {
-    char * label;
-    int offset; // Offset from out_buffer where label is used.
-} UndefLabel;
+    SymbolRec * table;
+    int size; // Number of elements
+    int cap;  // Maximum capacity
+} SymbolTable;
 
 void save_label(const char * label);
 int label_address(const char * label);
 
-void save_undef_label(const char * label);
+void save_undef_label(const char * label, int offset);
 void resolve_labels(void);
 
 #endif

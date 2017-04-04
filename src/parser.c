@@ -272,7 +272,7 @@ static void parse_operand(struct Operand * opnd) {
 
         // Save undefined labels.
         if (opnd->constant == -1) {
-            save_undef_label(lexstr);
+            save_undef_label(lexstr, 2); // 2 offset = 1 opcode + 1 descriptor
         }
 
         // Advance token past the identifier.
@@ -311,7 +311,11 @@ static void parse_register(struct Operand * opnd) {
  * Accumulates 'scale' into either reg1_* or reg2_* based on register 'ID',
  * either matching or claiming an empty space if possible.
  */
-static void reg_accumulate(RegisterId id, int scale, RegisterId * reg1_id, int * reg1_scale,  RegisterId * reg2_id, int * reg2_scale) {
+static void reg_accumulate(
+    RegisterId id,        int scale,
+    RegisterId * reg1_id, int * reg1_scale,
+    RegisterId * reg2_id, int * reg2_scale
+) {
     // First see if our id sits in reg1 or reg2.
     // If it doesn't, then check if reg1 or reg2 are empty.
     // If they are, fill it, otherwise, be sad.
@@ -504,7 +508,7 @@ static void parse_data_byte(void) {
         DEBUG(" { Reading byte %ld", lexint);
 
         // lexint contains numeric value of byte.
-        if (UBYTE_MAX < lexint)
+        if (UBYTE_MAX < (uint32_t) lexint)
             ERR_QUIT("Number too large to fit in 8 bits.");
 
         out_buffer[loc_ctr++] = lexint; // Set into buffer
@@ -531,7 +535,7 @@ static void parse_data_num_list(uint32_t hi, int width) {
             ERR_QUIT("Expected numeric literal.");
 
         // lexint contains numeric value of byte.
-        if (hi < lexint)
+        if (hi < (uint32_t) lexint)
             ERR_QUIT("Number too large to fit.");
 
         // Copy over to out_buffer and increment bytes.
@@ -560,10 +564,38 @@ static void parse_data_half(void) {
 }
 
 /*
- * Parse `dw` directive.
+ * Parse `dw` directive. Can contain numeric literals or labels.
  * Pre-conditions: current token is on `dw`.
  * Post-conditions: current token is TOK_NL.
  */
 static void parse_data_word(void) {
-    parse_data_num_list(UWORD_MAX, WORD_WIDTH);
+    // List of comma-delimited bytes follow `dw`.
+    while ((token = next_tok()) != TOK_NL) {
+        if (token != TOK_NUM && token != TOK_ID)
+            ERR_QUIT("Expected numeric literal or identifier.");
+
+        // Try to get an address for a label, or just save it at 0 offset.
+        if (token == TOK_ID) {
+            lexint = label_address(lexstr);
+            if (lexint == -1) save_undef_label(lexstr, 0);
+        }
+
+        // lexint contains numeric value of word.
+        if (UWORD_MAX < (uint32_t) lexint)
+            ERR_QUIT("Number too large to fit.");
+
+        // Copy over to out_buffer and increment bytes.
+        memcpy(out_buffer + loc_ctr, &lexint, WORD_WIDTH);
+        loc_ctr += WORD_WIDTH;
+
+        // Advance past byte.
+        token = next_tok();
+
+        // TOK_NL signals end of list.
+        if (token == TOK_NL) return;
+
+        // Comma should follow if no newline.
+        if (token != TOK_COMMA)
+            ERR_QUIT("Expected `,` separator.");
+    }
 }
