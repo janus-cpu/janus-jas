@@ -1,0 +1,3 @@
+;; Test ambiguous operand sizes
+push 0
+push.s 0

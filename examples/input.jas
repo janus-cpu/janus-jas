@@ -1,0 +1,20 @@
+;; Input functions
+;; ---------------
+
+        jmp main ; skip to main
+
+echo:
+        out 1, r0
+        ret
+
+main:
+
+loop:
+        in 0, r0
+        call echo ; echo input
+
+        cmp 10, r0 ; loop back if in != newline
+        jne loop
+
+        hlt
+

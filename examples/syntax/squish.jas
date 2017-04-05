@@ -1,0 +1,2 @@
+;; test that squished indirect expressions parse correctly
+mov 0, [r0+12]

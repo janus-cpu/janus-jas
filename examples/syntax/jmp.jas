@@ -1,2 +1,3 @@
+;; Test labels + jmp
 for:
     jmp for ;joy
