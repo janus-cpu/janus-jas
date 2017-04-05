@@ -144,17 +144,21 @@ void unalias_instruction(struct Instruction * instr) {
 }
 
 /*
- * Check if instruction opcode is only long type. i.e. within ranges
+ * Check if instruction opcode is only of long or short type.
  *  - [0x80, 0x8A]: jmp and call Instructions
  *  - [0x70, 0x7D]: special register load/read instructions
+ *  - 0x8E: interrupt
  */
-inline int is_long_instruction(unsigned char opcode) {
+inline int fixed_instruction(unsigned char opcode) {
     return (0x80 <= opcode && opcode <= 0x8A) ||
-           (0x70 <= opcode && opcode <= 0x7D);
+           (0x70 <= opcode && opcode <= 0x7D) || opcode == 0x8E;
 }
 
+/*
+ * "Togglable" in the sense that there can be both a .s and .l suffix.
+ */
 inline int togglable_instruction(unsigned char opcode) {
-    return opcode < 0x70 || 0x8F < opcode; // Not not togglable.
+    return !fixed_instruction(opcode);
 }
 
 // Sets the constant size for an OT_CONST operand.
@@ -208,6 +212,10 @@ int instr_size_agreement(struct Instruction * instr) {
 
     // NOP type doesn't need agreement.
     if (instr->type == IT_N) return 1;
+
+    // INT has forced short size.
+    if (instr->opcode == OPCODE_INT && op1->size == OS_LONG)
+        return 0;
 
     result = op_size_agreement(instr, op1);
     result = op_size_agreement(instr, op2) && result;

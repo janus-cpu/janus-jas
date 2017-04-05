@@ -177,12 +177,14 @@ static inline void parse_instruction(void) {
 static void parse_length_modifier(struct Instruction * instr) {
     token = next_tok(); // Advance to length modifier.
 
+    // NOP-type can't receive any length modifier suffix.
+    if (instr->type == IT_N || fixed_instruction(instr->opcode)) {
+        ERR_QUIT("Instruction cannot have a length modifer.");
+    }
+
     if (*lexstr == 's') {
         instr->size = OS_SHORT;
         instr->opcode++; // Increment to short opcode.
-        if (!togglable_instruction(instr->opcode)) {
-            ERR_QUIT("Instruction cannot be shortened.");
-        }
     } else if (*lexstr == 'l') {
         instr->size = OS_LONG;
     } else {

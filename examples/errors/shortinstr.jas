@@ -1,3 +1,14 @@
-
+;; should break if long instructions or a NOP type get .s
 label:
-    call.s label
+    ;call.s label
+
+    int.s 255
+    int.l 255
+
+    lom.s r0
+    lom.l r0
+
+    pushr.s
+    popr.s
+
+    nop.s

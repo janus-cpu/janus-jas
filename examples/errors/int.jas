@@ -1,0 +1,3 @@
+;; `int` can't have an operand > 255
+
+int 256

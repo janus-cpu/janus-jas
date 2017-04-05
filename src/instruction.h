@@ -96,7 +96,7 @@ struct InstrRecord {
 int instr_info(const char * name, struct InstrRecord * out);
 
 int is_instruction(const char * name);
-int is_long_instruction(unsigned char opcode);
+int fixed_instruction(unsigned char opcode);
 int togglable_instruction(unsigned char opcode);
 int has_operands(enum InstructionType ty);
 int has_two_operands(enum InstructionType ty);
