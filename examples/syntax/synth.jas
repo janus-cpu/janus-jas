@@ -1,0 +1,24 @@
+;; testing that synthetic instructions assemble
+
+nop
+xchg r0, r0
+
+dw 0xAAAAAAAA
+
+inc r0
+add 1, r0
+
+dw 0xAAAAAAAA
+
+dec r0
+sub 1, r0
+
+dw 0xAAAAAAAA
+
+neg r0
+rsub 0, r0
+
+dw 0xAAAAAAAA
+
+clr r0
+xor r0, r0

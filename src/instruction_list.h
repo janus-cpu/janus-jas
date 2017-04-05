@@ -9,6 +9,7 @@ const struct InstrRecord instr_lookup[] = {
     {"SUB",   0x2,   IT_A},
     {"ADC",   0x4,   IT_A},
     {"SBB",   0x6,   IT_A},
+    {"RSUB",  0x8,   IT_A},
     {"NOR",   0x20,  IT_A},
     {"NAND",  0x24,  IT_A},
     {"OR",    0x28,  IT_A},
@@ -61,6 +62,8 @@ const struct InstrRecord instr_lookup[] = {
     {"IN",    0xA4,  IT_I},
     {"OUT",   0xA6,  IT_I},
     {"XCHG",  0xA8,  IT_X},
+    {"POPR",  0xAA,  IT_N},
+    {"PUSHR", 0xAB,  IT_N},
 
     {"MOVE",   0xB0,  IT_A},
     {"MOVZ",   0xB0,  IT_A},

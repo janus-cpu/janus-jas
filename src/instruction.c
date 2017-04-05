@@ -110,7 +110,7 @@ void unalias_instruction(struct Instruction * instr) {
 
     // NEG op => SUB 0, op
     if (!strcmp(name, "NEG")) {
-        instr_info("SUB", &info);
+        instr_info("RSUB", &info);
 
         // Fill with aliased instr info.
         instr->name = info.name;
