@@ -49,8 +49,10 @@ extern FILE* lexfile;
 
 /** lexer functions -------------------------------------------------------- **/
 
-void jas_err(const char* msg, int line, int lo, int hi);
+void jas_err_line(const char* msg, int line, int lo, int hi, ...);
+void jas_err(const char* msg, ...);
 TokenType next_tok(void);
+TokenType flush_tok(void);
 int is_register(TokenType token);
 int is_directive(TokenType token);
 

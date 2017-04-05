@@ -5,8 +5,10 @@
 
 #include "lexer.h"
 
-#define ERR_QUIT(msg) \
-    do { jas_err(msg, curr_line, lo_col, curr_col); return; } while (0)
+#define EXPECT(expr) do { if (!expr) return false; } while (false)
+#define ERR_QUIT(msg) do { jas_err(msg); return false; } while (false)
+#define ERR_FLUSH(msg) \
+    do { jas_err(msg); token = flush_tok(); return false; } while (false)
 
 /* passed to strtol to read in any base */
 #define ANY_BASE 0

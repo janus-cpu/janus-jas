@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdbool.h>
 
 #include "lexer.h"
 #include "debug.h"
@@ -18,20 +19,20 @@
 /** local fn prototypes **/
 
 /* reading input */
-static inline void parse_line(void);
-static inline void parse_label(void);
-static inline void parse_instruction(void);
-static inline void parse_directive(void);
+static inline bool parse_line(void);
+static inline bool parse_label(void);
+static inline bool parse_instruction(void);
+static inline bool parse_directive(void);
 
-static void parse_length_modifier(struct Instruction * instr);
-static void parse_operands(struct Instruction * instr);
-static void parse_operand(struct Operand * opnd);
-static void parse_register(struct Operand * opnd);
-static void parse_register_indirect(struct Operand * opnd);
-static void parse_data_str(void);
-static void parse_data_byte(void);
-static void parse_data_half(void);
-static void parse_data_word(void);
+static bool parse_length_modifier(struct Instruction * instr);
+static bool parse_operands(struct Instruction * instr);
+static bool parse_operand(struct Operand * opnd);
+static bool parse_register(struct Operand * opnd);
+static bool parse_register_indirect(struct Operand * opnd);
+static bool parse_data_str(void);
+static bool parse_data_byte(void);
+static bool parse_data_half(void);
+static bool parse_data_word(void);
 
 // Current token.
 static TokenType token;
@@ -64,26 +65,27 @@ void analyze(void) {
  *  - TOK_NL, TOK_LABEL, TOK_INST, TOK_DATA_SEG
  * Post-conditions: current token is TOK_NL.
  */
-static inline void parse_line(void) {
+static inline bool parse_line(void) {
     // Let by empty lines.
-    if (token == TOK_NL) return;
+    if (token == TOK_NL) return true;
 
     if (token == TOK_LABEL) {
 
-        parse_label();
+        EXPECT(parse_label());
 
     } else if (token == TOK_INSTR) {
 
-        parse_instruction();
+        EXPECT(parse_instruction());
 
     } else if (is_directive(token)) {
-        // TODO: Extends to non-data directives later
-        parse_directive();
+
+        EXPECT(parse_directive());
 
     } else {
-        jas_err("Line must start with label, instruction, or data segment.",
-                curr_line, lo_col, curr_col);
+        ERR_FLUSH("Line must start with label, instruction, or data segment.");
     }
+
+    return true;
 }
 
 /*
@@ -92,8 +94,9 @@ static inline void parse_line(void) {
  * Pre-conditions: current token is TOK_LABEL.
  * Post-conditions: current token is the one following the label and its colon.
  */
-static inline void parse_label(void) {
+static inline bool parse_label(void) {
     save_label(lexstr);
+    return true;
 }
 
 /*
@@ -102,7 +105,7 @@ static inline void parse_label(void) {
  * Post-conditions: current token is the one following the last operand of the
  *                  instruction.
  */
-static inline void parse_instruction(void) {
+static inline bool parse_instruction(void) {
     DEBUG(">> Parsing instruction `%s`", lexstr);
     struct Instruction newInstr = {0};
     struct InstrRecord info = {0};
@@ -129,17 +132,16 @@ static inline void parse_instruction(void) {
     // Assume size is long by default.
     newInstr.size = OS_LONG;
     if (token == TOK_DOT) {
-        parse_length_modifier(&newInstr);
+        EXPECT(parse_length_modifier(&newInstr));
     }
 
     // Read the operands.
-    parse_operands(&newInstr);
+    EXPECT(parse_operands(&newInstr));
 
     // Check that the operand types agree with the instruction.
     if (!instr_type_agreement(&newInstr)) {
-        jas_err("Instruction operands do not agree with its prototype.",
+        jas_err_line("Instruction operands do not agree with its prototype.",
                 instr_line, instr_lo_col, instr_curr_col);
-        return;
     }
 
     // If instruction is synthetic, turn it into its aliased instruction.
@@ -153,18 +155,19 @@ static inline void parse_instruction(void) {
             newInstr.op1.size, newInstr.op2.size);
 
     if (!instr_size_agreement(&newInstr)) {
-        jas_err("Instruction operands' sizes are not in agreement.",
+        jas_err_line("Instruction operands' sizes are not in agreement.",
                 instr_line, instr_lo_col, instr_curr_col);
-        return;
     }
 
     // XXX: is this a good place to write out the instruction?
     /* write the machine code for this instruction into the buffer */
-    if (save_instruction(&newInstr)) {
-        jas_err("Could not write instruction!",
+    if (!j_err && save_instruction(&newInstr)) {
+        jas_err_line("Could not write instruction!",
                 instr_line, instr_lo_col, instr_curr_col);
-        return;
+        return false;
     }
+
+    return true;
 }
 
 /*
@@ -174,63 +177,66 @@ static inline void parse_instruction(void) {
  * Post-conditions: current token is the one following the length modifier.
  *                  `instr` will contain size information of the instruction.
  */
-static void parse_length_modifier(struct Instruction * instr) {
+static bool parse_length_modifier(struct Instruction * instr) {
     token = next_tok(); // Advance to length modifier.
 
     // NOP-type can't receive any length modifier suffix.
     if (instr->type == IT_N || fixed_instruction(instr->opcode)) {
-        ERR_QUIT("Instruction cannot have a length modifer.");
+        ERR_FLUSH("Instruction cannot have a length modifer.");
     }
 
-    if (*lexstr == 's') {
+    if (token == TOK_ID && *lexstr == 's') {
         instr->size = OS_SHORT;
         instr->opcode++; // Increment to short opcode.
-    } else if (*lexstr == 'l') {
+    } else if (token == TOK_ID && *lexstr == 'l') {
         instr->size = OS_LONG;
     } else {
-        ERR_QUIT("Invalid length modifier, expecting 's' or 'l'");
+        ERR_FLUSH("Invalid length modifier, expecting 's' or 'l'.");
     }
 
     DEBUG(" | Forced op size %d.", instr->size);
 
     token = next_tok(); // Advance to operands.
+    return true;
 }
 
 /*
  * Parse multiple operands for an instruction.
  * Pre-conditions: current token is /possibly/ the start of an operand.
- * Post-conditions: current token is one following the last operand.
- *                  `instr` will contain information about the operands.
+ * Post-conditions: current token is TOK_NL.`instr` will contain information
+ *                  about the operands.
  */
-static inline void parse_operands(struct Instruction * instr) {
+static inline bool parse_operands(struct Instruction * instr) {
     // Because there are no-operand, one-operand, and two-operand instructions,
     // there is a possibility of TOK_NL appearing throughout parsing these.
 
-    if (token == TOK_NL) return; // No-operand instruction.
+    if (token == TOK_NL) return true; // No-operand instruction.
 
     // Check consistency with instruction type.
     if (!has_operands(instr->type))
-        ERR_QUIT("Instruction doesn't have operands.");
+        ERR_FLUSH("Instruction prototype doesn't have operands.");
 
     DEBUG(" - Reading first operand%s","");
 
     // First operand.
-    parse_operand(&instr->op1);
+    EXPECT(parse_operand(&instr->op1));
 
-    if (token == TOK_NL) return; // One-operand instruction.
+    if (token == TOK_NL) return true; // One-operand instruction.
 
     // Check consistency with instruction type.
     if (!has_two_operands(instr->type))
-        ERR_QUIT("Instruction doesn't have two operands.");
+        ERR_FLUSH("Instruction prototype doesn't have two operands.");
 
     // Expect a comma before a second operand.
-    if (token != TOK_COMMA) ERR_QUIT("Expected comma.");
+    if (token != TOK_COMMA) ERR_FLUSH("Expected comma.");
 
     DEBUG(" - Reading second operand%s","");
 
     // Advance to next operand.
     token = next_tok();
-    parse_operand(&instr->op2); // Two-operand instruction.
+    EXPECT(parse_operand(&instr->op2)); // Two-operand instruction.
+
+    return true;
 }
 
 /*
@@ -239,7 +245,7 @@ static inline void parse_operands(struct Instruction * instr) {
  * Post-conditions: current token is one following the operand.
  *                  `opnd` will contain information about the operand.
  */
-static void parse_operand(struct Operand * opnd) {
+static bool parse_operand(struct Operand * opnd) {
 
     // Four possibilities: Constant, Register, Register Indirect, or Identifier.
     if (token == TOK_NUM) {
@@ -256,11 +262,11 @@ static void parse_operand(struct Operand * opnd) {
 
     } else if (is_register(token)) {
 
-        parse_register(opnd);
+        EXPECT(parse_register(opnd));
 
     } else if (token == TOK_LBRACKET) {
 
-        parse_register_indirect(opnd);
+        EXPECT(parse_register_indirect(opnd));
 
     } else if (token == TOK_ID) {
         DEBUG(" | Reading identifier `%s`", lexstr);
@@ -281,8 +287,10 @@ static void parse_operand(struct Operand * opnd) {
         token = next_tok();
 
     } else {
-        ERR_QUIT("Unrecognizable operand.");
+        ERR_FLUSH("Unrecognizable operand.");
     }
+
+    return true;
 }
 
 /*
@@ -293,7 +301,7 @@ static void parse_operand(struct Operand * opnd) {
  * Post-conditions: current token is the one following the register token.
  *
  */
-static void parse_register(struct Operand * opnd) {
+static bool parse_register(struct Operand * opnd) {
     DEBUG(" | Reading register `%s`", lexstr);
     /* check register size */
     if (token == TOK_GS_REG) {
@@ -307,13 +315,15 @@ static void parse_register(struct Operand * opnd) {
 
     // Advance to token after register.
     token = next_tok();
+
+    return true;
 }
 
 /*
  * Accumulates 'scale' into either reg1_* or reg2_* based on register 'ID',
  * either matching or claiming an empty space if possible.
  */
-static void reg_accumulate(
+static bool reg_accumulate(
     RegisterId id,        int scale,
     RegisterId * reg1_id, int * reg1_scale,
     RegisterId * reg2_id, int * reg2_scale
@@ -332,8 +342,10 @@ static void reg_accumulate(
         *reg2_id = id;
         *reg2_scale = scale;
     } else {
-        ERR_QUIT("Cannot process indirect with 3 operands.");
+        ERR_FLUSH("Cannot process indirect with 3 operands.");
     }
+
+    return true;
 }
 
 /*
@@ -343,7 +355,7 @@ static void reg_accumulate(
  * Post-conditions: current token is after the TOK_RBRACKET of the indirect.
  *                  `opnd` will contain information about the operand.
  */
-static void parse_register_indirect(struct Operand * opnd) {
+static bool parse_register_indirect(struct Operand * opnd) {
     bool first = true;
     int constant = 0;
     int reg1_scale = 0, reg2_scale = 0;
@@ -359,7 +371,7 @@ static void parse_register_indirect(struct Operand * opnd) {
             } else if (token == TOK_PLUS) {
                 token = next_tok();
             } else {
-                ERR_QUIT("This .... uhhh.. should be unreachable... (:");
+                ERR_FLUSH("This .... uhhh.. should be unreachable... (:");
             }
         } else
             first = false;
@@ -372,7 +384,7 @@ static void parse_register_indirect(struct Operand * opnd) {
               RegisterId id;
 
               if (next_tok() != TOK_NUM) {
-                  ERR_QUIT("Expected number following offset multiplication.");
+                  ERR_FLUSH("Expected number following offset multiplication.");
               }
 
               id = register_id(lexstr);
@@ -381,7 +393,7 @@ static void parse_register_indirect(struct Operand * opnd) {
             } else if (token == TOK_RBRACKET || token == TOK_PLUS) {
                 constant += scale;
             } else {
-                ERR_QUIT("Expected `+`, `*`, or `]`.");
+                ERR_FLUSH("Expected `+`, `*`, or `]`.");
             }
         } else if (token == TOK_GL_REG) {
             RegisterId id = register_id(lexstr);
@@ -392,7 +404,7 @@ static void parse_register_indirect(struct Operand * opnd) {
                 int scale;
 
                 if (next_tok() != TOK_NUM) {
-                    ERR_QUIT("Expected number following register multiplication.");
+                    ERR_FLUSH("Expected number following register multiplication.");
                 }
 
                 scale = lexint;
@@ -401,16 +413,16 @@ static void parse_register_indirect(struct Operand * opnd) {
             } else if (token == TOK_RBRACKET || token == TOK_PLUS) {
                 reg_accumulate(id, 1, &reg1_id, &reg1_scale, &reg2_id, &reg2_scale);
             } else {
-                ERR_QUIT("Expected `+`, `*`, or `]`.");
+                ERR_FLUSH("Expected `+`, `*`, or `]`.");
             }
         } else {
-            ERR_QUIT("Expected integer or long register.");
+            ERR_FLUSH("Expected integer or long register.");
         }
     }
 
     if (reg2_id == (RegisterId) -1) {
         if (reg1_id == (RegisterId) -1)
-            ERR_QUIT("Need at least 1 register in an indirect access.");
+            ERR_FLUSH("Need at least 1 register in an indirect access.");
 
         if (reg1_scale == 1) {
             opnd->type = OT_IND;
@@ -421,13 +433,13 @@ static void parse_register_indirect(struct Operand * opnd) {
             opnd->reg = opnd->index_reg = reg1_id;
             opnd->scale = reg1_scale - 1;
         } else {
-            ERR_QUIT("TODO: pls better error msg.");
+            ERR_FLUSH("TODO: pls better error msg.");
         }
     } else {
         if (reg1_scale == 1) {
             if (reg2_scale != 1 && reg2_scale != 2 &&
                 reg2_scale != 4 && reg2_scale != 8)
-                ERR_QUIT("Offset register needs to be power of 2.");
+                ERR_FLUSH("Offset register needs to be power of 2.");
             opnd->type = OT_SC_IND;
             opnd->reg = reg1_id;
             opnd->index_reg = reg2_id;
@@ -435,19 +447,21 @@ static void parse_register_indirect(struct Operand * opnd) {
         } else if (reg2_scale == 1) {
             if (reg1_scale != 1 && reg1_scale != 2 &&
                 reg1_scale != 4 && reg1_scale != 8)
-                ERR_QUIT("Offset register needs to be power of 2.");
+                ERR_FLUSH("Offset register needs to be power of 2.");
             opnd->type = OT_SC_IND;
             opnd->reg = reg2_id;
             opnd->index_reg = reg1_id;
             opnd->scale = reg1_scale;
         } else {
-          ERR_QUIT("TODO: no base :(");
+          ERR_FLUSH("TODO: no base :(");
         }
     }
 
     opnd->constant = constant;
     opnd->const_size = fit_size(constant);
     opnd->size = OS_SHORT;
+
+    return true;
 }
 
 /*
@@ -457,23 +471,25 @@ static void parse_register_indirect(struct Operand * opnd) {
  * Pre-conditions: current token is one of TOK_DATA_SEG, ...
  * Post-conditions: current token is TOK_NL.
  */
-static inline void parse_directive(void) {
+static inline bool parse_directive(void) {
     switch (token) {
         case TOK_DATA_STR:
-            parse_data_str();
+            EXPECT(parse_data_str());
             break;
         case TOK_DATA_BYTE:
-            parse_data_byte();
+            EXPECT(parse_data_byte());
             break;
         case TOK_DATA_HALF:
-            parse_data_half();
+            EXPECT(parse_data_half());
             break;
         case TOK_DATA_WORD:
-            parse_data_word();
+            EXPECT(parse_data_word());
             break;
         default:
-            ERR_QUIT("Bad stuff happened");
+            ERR_FLUSH("Bad stuff happened...");
     }
+
+    return true;
 }
 
 /*
@@ -481,12 +497,12 @@ static inline void parse_directive(void) {
  * Pre-conditions: current token is on `ds`.
  * Post-conditions: current token is TOK_NL.
  */
-static void parse_data_str(void) {
+static bool parse_data_str(void) {
     token = next_tok(); // Eat `ds`
 
     // String should follow.
     if (token != TOK_STR_LIT)
-        ERR_QUIT("Expected string literal.");
+        ERR_FLUSH("Expected string literal.");
 
     // String is in lexstr, with length in lexint.
     // Copy over to out_buffer and increment bytes.
@@ -494,6 +510,8 @@ static void parse_data_str(void) {
     loc_ctr += lexint;
 
     token = next_tok(); // Eat string literal.
+
+    return true;
 }
 
 /*
@@ -501,17 +519,17 @@ static void parse_data_str(void) {
  * Pre-conditions: current token is on `db`.
  * Post-conditions: current token is TOK_NL.
  */
-static void parse_data_byte(void) {
+static bool parse_data_byte(void) {
     // List of comma-delimited bytes follow `db`.
     while ((token = next_tok()) != TOK_NL) {
         if (token != TOK_NUM && token != TOK_CHR_LIT)
-            ERR_QUIT("Expected numeric or character literal.");
+            ERR_FLUSH("Expected numeric or character literal.");
 
         DEBUG(" { Reading byte %ld", lexint);
 
         // lexint contains numeric value of byte.
         if (UBYTE_MAX < (uint32_t) lexint)
-            ERR_QUIT("Number too large to fit in 8 bits.");
+            ERR_FLUSH("Number too large to fit in 8 bits.");
 
         out_buffer[loc_ctr++] = lexint; // Set into buffer
 
@@ -519,26 +537,28 @@ static void parse_data_byte(void) {
         token = next_tok();
 
         // TOK_NL signals end of list.
-        if (token == TOK_NL) return;
+        if (token == TOK_NL) return true;
 
         // Comma should follow if no newline.
         if (token != TOK_COMMA)
-            ERR_QUIT("Expected `,` separator.");
+            ERR_FLUSH("Expected `,` separator.");
     }
+
+    return true;
 }
 
 /*
  * Helper function for parse_data_half and parse_data_word.
  */
-static void parse_data_num_list(uint32_t hi, int width) {
+static bool parse_data_num_list(uint32_t hi, int width) {
     // List of comma-delimited bytes follow `d_`.
     while ((token = next_tok()) != TOK_NL) {
         if (token != TOK_NUM)
-            ERR_QUIT("Expected numeric literal.");
+            ERR_FLUSH("Expected numeric literal.");
 
         // lexint contains numeric value of byte.
         if (hi < (uint32_t) lexint)
-            ERR_QUIT("Number too large to fit.");
+            ERR_FLUSH("Number too large to fit.");
 
         // Copy over to out_buffer and increment bytes.
         memcpy(out_buffer + loc_ctr, &lexint, width);
@@ -548,12 +568,14 @@ static void parse_data_num_list(uint32_t hi, int width) {
         token = next_tok();
 
         // TOK_NL signals end of list.
-        if (token == TOK_NL) return;
+        if (token == TOK_NL) return true;
 
         // Comma should follow if no newline.
         if (token != TOK_COMMA)
-            ERR_QUIT("Expected `,` separator.");
+            ERR_FLUSH("Expected `,` separator.");
     }
+
+    return true;
 }
 
 /*
@@ -561,8 +583,8 @@ static void parse_data_num_list(uint32_t hi, int width) {
  * Pre-conditions: current token is on `dh`.
  * Post-conditions: current token is TOK_NL.
  */
-static void parse_data_half(void) {
-    parse_data_num_list(UHALF_MAX, HALF_WIDTH);
+static bool parse_data_half(void) {
+    return parse_data_num_list(UHALF_MAX, HALF_WIDTH);
 }
 
 /*
@@ -570,11 +592,11 @@ static void parse_data_half(void) {
  * Pre-conditions: current token is on `dw`.
  * Post-conditions: current token is TOK_NL.
  */
-static void parse_data_word(void) {
+static bool parse_data_word(void) {
     // List of comma-delimited bytes follow `dw`.
     while ((token = next_tok()) != TOK_NL) {
         if (token != TOK_NUM && token != TOK_ID)
-            ERR_QUIT("Expected numeric literal or identifier.");
+            ERR_FLUSH("Expected numeric literal or identifier.");
 
         // Try to get an address for a label, or just save it at 0 offset.
         if (token == TOK_ID) {
@@ -584,7 +606,7 @@ static void parse_data_word(void) {
 
         // lexint contains numeric value of word.
         if (UWORD_MAX < (uint32_t) lexint)
-            ERR_QUIT("Number too large to fit.");
+            ERR_FLUSH("Number too large to fit.");
 
         // Copy over to out_buffer and increment bytes.
         memcpy(out_buffer + loc_ctr, &lexint, WORD_WIDTH);
@@ -594,10 +616,12 @@ static void parse_data_word(void) {
         token = next_tok();
 
         // TOK_NL signals end of list.
-        if (token == TOK_NL) return;
+        if (token == TOK_NL) return true;
 
         // Comma should follow if no newline.
         if (token != TOK_COMMA)
-            ERR_QUIT("Expected `,` separator.");
+            ERR_FLUSH("Expected `,` separator.");
     }
+
+    return true;
 }

@@ -13,8 +13,8 @@
 #define BYTE_WIDTH 1
 
 #define SHALF_MIN (int16_t) 0x8000
-#define UHALF_MAX (int16_t) 0xFFFF
-#define SHALF_MAX (uint16_t) 0x7FFF
+#define SHALF_MAX (int16_t) 0x7FFF
+#define UHALF_MAX (uint16_t) 0xFFFF
 #define HALF_WIDTH 2
 
 #define SWORD_MIN (int32_t) 0x80000000

@@ -11,7 +11,7 @@
 #include "util.h"
 #include "debug.h"
 
-#define ERROR_FMT "\033[1m%s (%d:%d) \033[1;31merror:\033[0m %s\n"
+#define ERROR_FMT "\033[1m%s (%d:%d) \033[1;31merror:\033[0m "
 
 #define HEX_BASE 16
 #define BIN_BASE 2
@@ -84,12 +84,20 @@ static void fprint_caret(FILE* stream, int lo, int hi) {
 }
 
 /*
- * Error-reporting function. Provides message and relevant code snippet to user.
+ * Helper error function that accepts variable arguments as a va_list.
  */
-void jas_err(const char* msg, int line, int lo, int hi) {
+static inline void v_jas_err(
+    const char* msg,
+    int line,
+    int lo,
+    int hi,
+    va_list args
+) {
     char linestr[BUFSIZ];
     long int pos;
-    fprintf(stderr, ERROR_FMT, infilename, line, hi, msg);
+    fprintf(stderr, ERROR_FMT, infilename, line, hi);
+    vfprintf(stderr, msg, args);
+    fputc('\n', stderr);
 
     // Save position and seek back to the front of the line.
     // We need to save the absolute position, since getting the whole line later
@@ -121,6 +129,27 @@ void jas_err(const char* msg, int line, int lo, int hi) {
 
     // Error happened.
     j_err = 1;
+}
+
+/*
+ * Error-reporting function for when line and col information
+ * should be specified.
+ */
+void jas_err_line(const char * msg, int line, int lo, int hi, ...) {
+    va_list args;
+    va_start(args, hi); // hi is the last named parameter.
+    v_jas_err(msg, line, lo, hi, args);
+    va_end(args);
+}
+
+/*
+ * Error-reporting function that uses the current line and col information.
+ */
+void jas_err(const char * msg, ...) {
+    va_list args;
+    va_start(args, msg); // msg is the last named parameter.
+    v_jas_err(msg, curr_line, lo_col, curr_col, args);
+    va_end(args);
 }
 
 /*
@@ -285,20 +314,20 @@ static int is_long_reg(const char * reg) {
     if (reg[j++] != 'r') return 0;
 
     // rs and rr
-    if ((reg[j] == 's' || reg[j] == 'r') && reg[j + 1] == '\0')
+    if ((reg[j] == 's' || reg[j] == 'r' || reg[j] == 'b') && reg[j + 1] == '\0')
         return 1;
 
-    // Gen. purpose.
-    if (isdigit(reg[j])) {
+    // Check for 2-digit registers
+    if (reg[j] == '1') {
         // Advance to the end of the string.
         j++;
 
         // If another digit, move over once more.
         if ('0' <= reg[j] && reg[j] <= '5') j++;
+    } else if (isdigit(reg[j])) j++;
 
-        // Should be at end of string now.
-        if (reg[j] == '\0') return 1;
-    }
+    // Should be at end of string now.
+    if (reg[j] == '\0') return 1;
 
     // Catch-all
     return 0;
@@ -338,6 +367,15 @@ static int fgets_base(char buf[], FILE* stream, int base) {
 }
 
 /** lexer ------------------------------------------------------------------- */
+
+/*
+ * Goes past all tokens until reaching a TOK_NL or TOK_EOF.
+ */
+TokenType flush_tok(void) {
+    TokenType t;
+    while ((t = next_tok()) != TOK_NL && t != TOK_EOF);
+    return t;
+}
 
 /*
  * Gets the next token from the `lexfile` FILE stream.
@@ -522,7 +560,6 @@ TokenType next_tok(void) {
             if (fit_size(lexint) == -1) {
                 jas_err("Integer larger than 32 bits.",
                         curr_line, lo_col, curr_col);
-                return TOK_UNK;
             }
 
             return TOK_NUM;

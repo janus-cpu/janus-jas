@@ -5,7 +5,8 @@
  * Returns -1 if can't fit any size.
  */
 int fit_size(unsigned long value) {
-    if ((int) value < 0) {
+    // If value is negative and can fit in a word, use a word.
+    if ((long) value < 0 && (long) value == (int32_t) value) {
         return WORD_WIDTH;
     }
 
